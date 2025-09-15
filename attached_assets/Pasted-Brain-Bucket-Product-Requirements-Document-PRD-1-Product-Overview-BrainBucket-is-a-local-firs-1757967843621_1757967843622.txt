@@ -1,0 +1,102 @@
+Brain Bucket – Product Requirements Document (PRD)
+1. Product Overview
+BrainBucket is a local-first ADHD-friendly personal productivity app for Android phone. It focuses on capturing thoughts quickly, then letting users organize and act later. The design prioritizes speed, minimal friction, and clarity, with optional integrations for syncing, notifications, and AI-powered organization.
+Guiding principles
+Fast capture, organize later: low cognitive overhead.
+Local-first: reliable offline storage, no forced cloud dependency.
+Clean UI: minimal distractions, modern look, spaced correctly.
+Extensible: buckets, folders, templates, integrations.
+2. Features 
+Biometrics for Open
+Biometrics for entry into the app
+Quick Capture
+Single entry box: “What’s on your mind?”.
+Capture Types: Task, Idea, Reference. Buttons for capture type
+Bucket picker: default = Unsorted.
+"+ Add" button adds immediately without leaving screen.
+For Task Captures type:
+Option to choose from “Quick Task Templates”
+“Cleaning” Task Templates prebuilt include the following items: Dishes, Trash, Water Plants, Vacuum, Clean Bathroom, Hang Laundry, Change Sheets, Clean Shower, Wash Floors, Clean Car, Tidy Bedroom, Replace Towels. 
+This is a set of tasks already nested under “cleaning”, with each of these as a default options to choose from 
+Cleaning template choices should always get sent to To-Do inbox
+Quick Task Templates builder functionality, a +New button where user can create a new template choice
+Buckets Tab
+Buckets screen lists all buckets + Unsorted. 
+Buckets appear as cards
+Bucket Cards are customizable by color
+Add captures directly into specific buckets or Unsorted.
+Drag & drop reordering
+Pre defined buckets include: To-Dos, Creatives, Shopping Lists, Ideas & Dreams, Vault, and Health. Must have the ability to create new buckets. 
+Bucket View
+Inbox per bucket for unorganized items.
+Inbox: shows unorganized items
+When Bucket has an item in the Inbox, the bucket card should have an indicator on the Buckets Tab to make user aware of the need to organize (star, icon, color change
+Done folder auto-collects checked tasks.
+Items:
+Checkbox for Tasks (done → moved to Done folder).
+Star/unstar (starred float to top).
+Move to folder. This is a folder picker where user can either pick from an already created folder or choose to create a new folder
+Tap to edit. All items can be edited completely, at any time
+Bucket view for each bucket shows Inbox items at the top, then folders that have been created as cards/pages
+When a new folder is created in Bucket View, it should be visible in Bucket View even if there is nothing in there/it’s empty. 
+Bucket view has the functionality to create a new folder
+Drag & drop reordering via ≡ handle for folders
+Ability to add new captures from bucket view (pops up a quick capture that had the bucket predefined based on where the Add was initiated).
+
+
+Folders
+Create new folders inside a bucket.
+Move functionality needed to allow user to move Captures into existing or new folders.
+Inside folders:
+Tasks checkable.
+Items star/unstar.
+Drag & drop reordering via ≡ handle.
+Scrollable lists.
+Done folder hides completed tasks from Inbox.
+Ability to add new captures from bucket view (pops up a quick capture that had the bucket and folder organization predefined based on where the Add was initiated).
+Starred Captures always sorted above non-starred.
+Captures - Editing and Viewing 
+Tap item → View Capture Screen 
+Capture View - a screen where all the capture information is available to view, clickable links, description, media, etc.  
+Includes a button to edit this item from this view, which would pop up the Edit Capture screen. 
+Edit Capture screen. Edit Capture screen shows:
+Text input pre-filled.
+Type picker.
+Bucket picker.
+Folder picker (if in bucket).
+Star toggle.
+Done toggle (if Task).
+Allow to add an additional text field to the capture, such as description. 
+Add media to the capture, including photos from the device, upload a document, add a link.
+Works in Inbox, Folders, Done.
+Save updates item and returns to previous screen.
+
+
+Navigation
+Bottom tabs/Navigation: Capture + Buckets is persistent across all screens
+Clean back navigation, consistent across screens.
+Google Integration
+Google Drive: manual export/import.
+Google Calendar: manual push of Tasks.
+User can choose: all-day or specific time.
+Supports recurring and one-off tasks.
+
+
+ChatGPT Integration
+On capture: optional AI suggestion modal (type + bucket).
+Summarization available in Edit Capture.
+Global search bar: semantic matches returned.
+Templates
+Inline cleaning templates. 
+Template builder: create/save new templates.
+Notifications
+Local reminders (manual per task).
+Recurrence supported. Recurrence options: daily, weekly, custom.
+Optional suggestions (AI: “Would you like a reminder for this?”).
+System Share Integration
+Add items from other apps - Registered Share target on Android
+Inline picker pops up: Task, Idea, Reference.
+3. Aesthetic
+Modern, clean, uncluttered.
+Rounded buttons.
+Consistent spacing, no text overflows. 
