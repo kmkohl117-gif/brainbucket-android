@@ -1,15 +1,28 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { useStore } from '@/store/useStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { ArrowLeft, Star, Edit, Calendar, Share, Copy, Trash2, ExternalLink, FileText, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, Star, Edit, Calendar, Share, Copy, Trash2, ExternalLink, FileText, Link as LinkIcon, FolderOpen, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import type { Capture, Bucket } from '@shared/schema';
+import { useToast } from '@/hooks/use-toast';
+import type { Capture, Bucket, Folder } from '@shared/schema';
 
 export function CaptureView() {
   const { navigation, setCurrentScreen, setSelectedCapture } = useStore();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  // Move dialog state
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [selectedBucketId, setSelectedBucketId] = useState('');
+  const [selectedFolderId, setSelectedFolderId] = useState('');
+  const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
 
   const { data: capture } = useQuery<Capture>({
     queryKey: ['/api/captures', navigation.selectedCaptureId],
@@ -19,6 +32,21 @@ export function CaptureView() {
   const { data: bucket } = useQuery<Bucket>({
     queryKey: ['/api/buckets', capture?.bucketId],
     enabled: !!capture?.bucketId,
+  });
+
+  // Additional queries for move functionality
+  const { data: buckets = [] } = useQuery<Bucket[]>({
+    queryKey: ['/api/buckets'],
+  });
+
+  const { data: folders = [] } = useQuery<Folder[]>({
+    queryKey: ['/api/folders', 'bucket', selectedBucketId],
+    enabled: !!selectedBucketId && selectedBucketId !== '__unsorted__',
+  });
+
+  const { data: currentFolder } = useQuery<Folder>({
+    queryKey: ['/api/folders', capture?.folderId],
+    enabled: !!capture?.folderId,
   });
 
   const updateCaptureMutation = useMutation({
@@ -50,6 +78,62 @@ export function CaptureView() {
       queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
       setSelectedCapture(newCapture.id);
       setCurrentScreen('edit-capture');
+    },
+  });
+
+  const moveCaptureMutation = useMutation({
+    mutationFn: async ({ bucketId, folderId }: { bucketId: string | null; folderId?: string }) => {
+      const response = await apiRequest('PATCH', `/api/captures/${capture?.id}`, {
+        bucketId,
+        folderId: folderId || undefined,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'folder'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', capture?.id] });
+      setShowMoveDialog(false);
+      setSelectedBucketId('');
+      setSelectedFolderId('');
+      toast({
+        title: 'Success',
+        description: 'Capture moved successfully',
+      });
+    },
+    onError: (error) => {
+      console.error('Error moving capture:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to move capture. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const createFolderMutation = useMutation({
+    mutationFn: async ({ name, bucketId }: { name: string; bucketId: string }) => {
+      const response = await apiRequest('POST', '/api/folders', { name, bucketId });
+      return response.json();
+    },
+    onSuccess: (newFolder) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/folders', 'bucket', selectedBucketId] });
+      setSelectedFolderId(newFolder.id);
+      setShowCreateFolderDialog(false);
+      setNewFolderName('');
+      toast({
+        title: 'Success',
+        description: 'Folder created successfully',
+      });
+    },
+    onError: (error) => {
+      console.error('Error creating folder:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create folder. Please try again.',
+        variant: 'destructive',
+      });
     },
   });
 
@@ -100,6 +184,33 @@ export function CaptureView() {
     };
     
     duplicateCaptureMutation.mutate(duplicateData);
+  };
+
+  const handleMoveClick = () => {
+    setSelectedBucketId(capture.bucketId || '__unsorted__');
+    setSelectedFolderId(capture.folderId || '');
+    setShowMoveDialog(true);
+  };
+
+  const handleMove = () => {
+    if (!selectedBucketId) return;
+    
+    // Handle 'unsorted' case by setting bucketId to null
+    const bucketIdToSend = selectedBucketId === '__unsorted__' ? null : selectedBucketId;
+    
+    moveCaptureMutation.mutate({
+      bucketId: bucketIdToSend,
+      folderId: selectedFolderId || undefined,
+    });
+  };
+
+  const handleCreateFolder = () => {
+    if (!newFolderName.trim() || !selectedBucketId || selectedBucketId === '__unsorted__') return;
+    
+    createFolderMutation.mutate({
+      name: newFolderName.trim(),
+      bucketId: selectedBucketId,
+    });
   };
 
   const handleOpenAttachment = (attachment: any) => {
@@ -240,6 +351,17 @@ export function CaptureView() {
               Add to Google Calendar
             </Button>
             
+            <Button 
+              variant="outline"
+              onClick={handleMoveClick}
+              className="w-full"
+              disabled={moveCaptureMutation.isPending}
+              data-testid="button-move-folder"
+            >
+              <FolderOpen className="w-4 h-4 mr-2" />
+              Move to Folder
+            </Button>
+            
             <div className="grid grid-cols-2 gap-3">
               <Button 
                 variant="outline"
@@ -272,6 +394,148 @@ export function CaptureView() {
           </div>
         </div>
       </div>
+
+      {/* Move to Folder Dialog */}
+      <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Move to Folder</DialogTitle>
+            <DialogDescription>
+              Select the bucket and folder where you want to move this capture.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Current Location */}
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">Currently in:</label>
+              <div className="text-sm font-medium text-foreground">
+                {bucket?.name || 'Unsorted'} {currentFolder && `• ${currentFolder.name}`}
+              </div>
+            </div>
+
+            {/* Bucket Selection */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Move to Bucket</label>
+              <Select
+                value={selectedBucketId || '__unsorted__'}
+                onValueChange={(bucketId) => {
+                  setSelectedBucketId(bucketId);
+                  setSelectedFolderId('');
+                }}
+              >
+                <SelectTrigger data-testid="select-move-bucket">
+                  <SelectValue placeholder="Select bucket" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__unsorted__">Unsorted</SelectItem>
+                  {buckets.map((bucket) => (
+                    <SelectItem key={bucket.id} value={bucket.id}>
+                      {bucket.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Folder Selection */}
+            {selectedBucketId && selectedBucketId !== '__unsorted__' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Select Folder</label>
+                <Select
+                  value={selectedFolderId || "none"}
+                  onValueChange={(folderId) => {
+                    if (folderId === "new") {
+                      setShowCreateFolderDialog(true);
+                    } else {
+                      setSelectedFolderId(folderId === "none" ? "" : folderId);
+                    }
+                  }}
+                >
+                  <SelectTrigger data-testid="select-move-folder">
+                    <SelectValue placeholder="None (Inbox)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None (Inbox)</SelectItem>
+                    {folders.map((folder) => (
+                      <SelectItem key={folder.id} value={folder.id}>
+                        {folder.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="new">
+                      <div className="flex items-center">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create New Folder
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowMoveDialog(false)}
+              data-testid="button-cancel-move"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleMove}
+              disabled={!selectedBucketId || moveCaptureMutation.isPending}
+              data-testid="button-confirm-move"
+            >
+              {moveCaptureMutation.isPending ? 'Moving...' : 'Move'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Folder Dialog */}
+      <Dialog open={showCreateFolderDialog} onOpenChange={setShowCreateFolderDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Folder</DialogTitle>
+            <DialogDescription>
+              Enter a name for the new folder in the selected bucket.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Folder Name</label>
+              <Input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Enter folder name"
+                data-testid="input-folder-name"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateFolderDialog(false);
+                setNewFolderName('');
+              }}
+              data-testid="button-cancel-folder"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateFolder}
+              disabled={!newFolderName.trim() || createFolderMutation.isPending}
+              data-testid="button-create-folder"
+            >
+              {createFolderMutation.isPending ? 'Creating...' : 'Create Folder'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
