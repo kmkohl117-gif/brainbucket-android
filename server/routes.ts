@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertCaptureSchema, insertBucketSchema, insertFolderSchema, insertTaskTemplateSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
+import express from "express";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -14,6 +15,9 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve uploaded files statically
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
   // Mock user ID for now (in real app, this would come from authentication)
   const mockUserId = "user-123";
 
@@ -202,6 +206,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No file uploaded" });
       }
 
+      // File type validation - allow common document, image, and media types
+      const allowedTypes = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+        'application/pdf', 'text/plain', 'text/csv',
+        'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'audio/mpeg', 'audio/wav', 'video/mp4', 'video/quicktime'
+      ];
+
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ error: `File type ${req.file.mimetype} not allowed` });
+      }
+
+      // File size validation (already handled by multer, but adding explicit check)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (req.file.size > maxSize) {
+        return res.status(400).json({ error: "File too large. Maximum size is 10MB" });
+      }
+
       const fileInfo = {
         id: Date.now().toString(),
         name: req.file.originalname,
@@ -212,6 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(fileInfo);
     } catch (error) {
+      console.error("File upload error:", error);
       res.status(500).json({ error: "Failed to upload file" });
     }
   });

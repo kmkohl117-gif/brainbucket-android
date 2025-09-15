@@ -41,13 +41,7 @@ export const captures = pgTable("captures", {
   isStarred: boolean("is_starred").default(false),
   isCompleted: boolean("is_completed").default(false),
   order: integer("order").default(0),
-  attachments: jsonb("attachments").$type<Array<{
-    id: string;
-    name: string;
-    type: string;
-    url: string;
-    size?: number;
-  }>>().default([]),
+  attachments: jsonb("attachments").$type<Attachment[]>().default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -116,3 +110,11 @@ export type TaskTemplate = typeof taskTemplates.$inferSelect;
 export type InsertTaskTemplate = z.infer<typeof insertTaskTemplateSchema>;
 
 export type CaptureType = 'task' | 'idea' | 'reference';
+
+export type Attachment = {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  size?: number;
+};

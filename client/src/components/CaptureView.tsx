@@ -41,6 +41,18 @@ export function CaptureView() {
     },
   });
 
+  const duplicateCaptureMutation = useMutation({
+    mutationFn: async (captureData: Partial<Capture>) => {
+      const response = await apiRequest('POST', '/api/captures', captureData);
+      return response.json();
+    },
+    onSuccess: (newCapture) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
+      setSelectedCapture(newCapture.id);
+      setCurrentScreen('edit-capture');
+    },
+  });
+
   if (!capture) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -73,6 +85,42 @@ export function CaptureView() {
 
   const handleEdit = () => {
     setCurrentScreen('edit-capture');
+  };
+
+  const handleDuplicate = () => {
+    const duplicateData = {
+      text: `${capture.text} (Copy)`,
+      description: capture.description,
+      type: capture.type,
+      bucketId: capture.bucketId,
+      folderId: capture.folderId,
+      isStarred: false, // Reset starred status for duplicates
+      isCompleted: false, // Reset completion status for duplicates
+      attachments: capture.attachments || [], // Copy attachments
+    };
+    
+    duplicateCaptureMutation.mutate(duplicateData);
+  };
+
+  const handleOpenAttachment = (attachment: any) => {
+    try {
+      // Check if it's a file upload (starts with /uploads) or external link
+      if (attachment.url.startsWith('/uploads/')) {
+        // For uploaded files, open in new tab with full URL
+        window.open(attachment.url, '_blank', 'noopener,noreferrer');
+      } else if (attachment.url.match(/^https?:\/\//)) {
+        // For external links, open directly
+        window.open(attachment.url, '_blank', 'noopener,noreferrer');
+      } else {
+        // For relative links, prepend current domain
+        const fullUrl = new URL(attachment.url, window.location.origin).toString();
+        window.open(fullUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      console.error('Error opening attachment:', error);
+      // Fallback: just open the URL as-is
+      window.open(attachment.url, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const getCaptureTypeColor = (type: string) => {
@@ -167,7 +215,12 @@ export function CaptureView() {
                           {attachment.size ? `${Math.round(attachment.size / 1024)} KB` : 'Link'}
                         </p>
                       </div>
-                      <Button variant="ghost" size="sm" data-testid={`button-open-${attachment.id}`}>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleOpenAttachment(attachment)}
+                        data-testid={`button-open-${attachment.id}`}
+                      >
                         <ExternalLink className="w-4 h-4 text-muted-foreground" />
                       </Button>
                     </CardContent>
@@ -197,10 +250,12 @@ export function CaptureView() {
               </Button>
               <Button 
                 variant="outline"
+                onClick={handleDuplicate}
+                disabled={duplicateCaptureMutation.isPending}
                 data-testid="button-duplicate"
               >
                 <Copy className="w-4 h-4 mr-2" />
-                Duplicate
+                {duplicateCaptureMutation.isPending ? 'Duplicating...' : 'Duplicate'}
               </Button>
             </div>
             

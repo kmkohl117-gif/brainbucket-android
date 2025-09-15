@@ -18,7 +18,7 @@ export function EditCapture() {
   const [formData, setFormData] = useState({
     text: '',
     description: '',
-    type: 'task' as const,
+    type: 'task' as CaptureType,
     bucketId: '',
     folderId: '',
     isStarred: false,
@@ -27,6 +27,16 @@ export function EditCapture() {
 
   const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkName, setLinkName] = useState('');
+  const [attachments, setAttachments] = useState<Array<{
+    id: string;
+    name: string;
+    type: string;
+    url: string;
+    size?: number;
+  }>>([]);
 
   const { data: capture } = useQuery<Capture>({
     queryKey: ['/api/captures', navigation.selectedCaptureId],
@@ -67,6 +77,19 @@ export function EditCapture() {
     },
   });
 
+  const uploadFileMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      return response.json();
+    },
+    onSuccess: (fileInfo) => {
+      setAttachments([...attachments, fileInfo]);
+    },
+  });
+
   useEffect(() => {
     if (capture) {
       setFormData({
@@ -78,6 +101,7 @@ export function EditCapture() {
         isStarred: capture.isStarred || false,
         isCompleted: capture.isCompleted || false,
       });
+      setAttachments(capture.attachments || []);
     }
   }, [capture]);
 
@@ -111,8 +135,49 @@ export function EditCapture() {
         folderId: formData.folderId || undefined,
         isStarred: formData.isStarred,
         isCompleted: formData.isCompleted,
+        attachments: attachments,
       }
     });
+  };
+
+  const handleFileUpload = (acceptType?: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    if (acceptType) {
+      input.accept = acceptType;
+    }
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', file);
+        uploadFileMutation.mutate(uploadFormData);
+      }
+    };
+    input.click();
+  };
+
+  const handlePhotoUpload = () => {
+    handleFileUpload('image/*');
+  };
+
+  const handleAddLink = () => {
+    if (linkUrl.trim() && linkName.trim()) {
+      const linkAttachment = {
+        id: Date.now().toString(),
+        name: linkName.trim(),
+        type: 'link',
+        url: linkUrl.trim(),
+      };
+      setAttachments([...attachments, linkAttachment]);
+      setLinkUrl('');
+      setLinkName('');
+      setShowLinkDialog(false);
+    }
+  };
+
+  const handleRemoveAttachment = (attachmentId: string) => {
+    setAttachments(attachments.filter(att => att.id !== attachmentId));
   };
 
   const captureTypes = [
@@ -290,6 +355,8 @@ export function EditCapture() {
           <div className="grid grid-cols-3 gap-3">
             <Button
               variant="outline"
+              onClick={handlePhotoUpload}
+              disabled={uploadFileMutation.isPending}
               className="p-3 h-auto flex-col space-y-1"
               data-testid="button-upload-photo"
             >
@@ -298,6 +365,8 @@ export function EditCapture() {
             </Button>
             <Button
               variant="outline"
+              onClick={() => handleFileUpload()}
+              disabled={uploadFileMutation.isPending}
               className="p-3 h-auto flex-col space-y-1"
               data-testid="button-upload-file"
             >
@@ -306,6 +375,7 @@ export function EditCapture() {
             </Button>
             <Button
               variant="outline"
+              onClick={() => setShowLinkDialog(true)}
               className="p-3 h-auto flex-col space-y-1"
               data-testid="button-add-link"
             >
@@ -315,9 +385,9 @@ export function EditCapture() {
           </div>
 
           {/* Current attachments */}
-          {capture.attachments && capture.attachments.length > 0 && (
+          {attachments.length > 0 && (
             <div className="space-y-2">
-              {capture.attachments.map((attachment) => (
+              {attachments.map((attachment) => (
                 <Card key={attachment.id}>
                   <CardContent className="p-3 flex items-center">
                     <LinkIcon className="w-5 h-5 text-primary mr-3" />
@@ -330,6 +400,7 @@ export function EditCapture() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => handleRemoveAttachment(attachment.id)}
                       className="text-destructive hover:text-destructive"
                       data-testid={`button-remove-${attachment.id}`}
                     >
@@ -384,6 +455,56 @@ export function EditCapture() {
               data-testid="button-create-folder"
             >
               {createFolderMutation.isPending ? 'Creating...' : 'Create Folder'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link Dialog */}
+      <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Link</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Link Name</label>
+              <Input
+                value={linkName}
+                onChange={(e) => setLinkName(e.target.value)}
+                placeholder="Enter link name"
+                className="mt-1"
+                data-testid="input-link-name"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">URL</label>
+              <Input
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="mt-1"
+                data-testid="input-link-url"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowLinkDialog(false);
+                setLinkUrl('');
+                setLinkName('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddLink}
+              disabled={!linkUrl.trim() || !linkName.trim()}
+              data-testid="button-add-link-confirm"
+            >
+              Add Link
             </Button>
           </DialogFooter>
         </DialogContent>
