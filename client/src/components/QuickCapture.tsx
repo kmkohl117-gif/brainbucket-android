@@ -25,9 +25,11 @@ export function QuickCapture() {
       const response = await apiRequest('POST', '/api/captures', captureData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (newCapture) => {
       queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
       queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket'] });
+      // Invalidate the specific bucket query that BucketView uses
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket', newCapture.bucketId] });
     },
   });
 

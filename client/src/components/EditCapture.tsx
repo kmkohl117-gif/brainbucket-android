@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useStore } from '@/store/useStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -23,6 +24,9 @@ export function EditCapture() {
     isStarred: false,
     isCompleted: false,
   });
+
+  const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
 
   const { data: capture } = useQuery<Capture>({
     queryKey: ['/api/captures', navigation.selectedCaptureId],
@@ -45,7 +49,21 @@ export function EditCapture() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket', formData.bucketId] });
       setCurrentScreen('capture-view');
+    },
+  });
+
+  const createFolderMutation = useMutation({
+    mutationFn: async ({ name, bucketId }: { name: string; bucketId: string }) => {
+      const response = await apiRequest('POST', '/api/folders', { name, bucketId });
+      return response.json();
+    },
+    onSuccess: (newFolder) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/folders', 'bucket', formData.bucketId] });
+      setFormData({ ...formData, folderId: newFolder.id });
+      setShowCreateFolderDialog(false);
+      setNewFolderName('');
     },
   });
 
@@ -192,7 +210,13 @@ export function EditCapture() {
             <label className="text-sm font-medium text-foreground">Folder (optional)</label>
             <Select
               value={formData.folderId || "none"}
-              onValueChange={(folderId) => setFormData({ ...formData, folderId: folderId === "none" ? "" : folderId })}
+              onValueChange={(folderId) => {
+                if (folderId === "new") {
+                  setShowCreateFolderDialog(true);
+                } else {
+                  setFormData({ ...formData, folderId: folderId === "none" ? "" : folderId });
+                }
+              }}
             >
               <SelectTrigger data-testid="select-folder">
                 <SelectValue placeholder="None (Inbox)" />
@@ -318,6 +342,52 @@ export function EditCapture() {
           )}
         </div>
       </div>
+
+      {/* Create Folder Dialog */}
+      <Dialog open={showCreateFolderDialog} onOpenChange={setShowCreateFolderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Folder</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Folder Name</label>
+              <Input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Enter folder name"
+                className="mt-1"
+                data-testid="input-folder-name"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateFolderDialog(false);
+                setNewFolderName('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (newFolderName.trim()) {
+                  createFolderMutation.mutate({
+                    name: newFolderName.trim(),
+                    bucketId: formData.bucketId
+                  });
+                }
+              }}
+              disabled={!newFolderName.trim() || createFolderMutation.isPending}
+              data-testid="button-create-folder"
+            >
+              {createFolderMutation.isPending ? 'Creating...' : 'Create Folder'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

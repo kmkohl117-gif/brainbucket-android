@@ -35,6 +35,7 @@ export function BucketView() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket', navigation.selectedBucketId] });
     },
   });
 
