@@ -47,7 +47,7 @@ export class MemStorage implements IStorage {
     this.initializeDefaultData();
   }
 
-  private initializeDefaultData() {
+  private async initializeDefaultData() {
     // Create default cleaning task templates
     const cleaningTasks = [
       'Dishes', 'Trash', 'Water Plants', 'Vacuum', 'Clean Bathroom', 
@@ -66,6 +66,20 @@ export class MemStorage implements IStorage {
       };
       this.taskTemplates.set(template.id, template);
     });
+
+    // Create mock user and their default buckets
+    const mockUserId = "user-123";
+    const mockUser: User = {
+      id: mockUserId,
+      username: "demo_user",
+      password: "demo_password",
+      biometricEnabled: false,
+      createdAt: new Date(),
+    };
+    this.users.set(mockUserId, mockUser);
+
+    // Create default buckets for the mock user
+    await this.createDefaultBuckets(mockUserId);
   }
 
   // Users
