@@ -97,6 +97,10 @@ export const insertTaskTemplateSchema = createInsertSchema(taskTemplates).pick({
   isDefault: true,
 });
 
+export const reorderBucketsSchema = z.object({
+  orderedIds: z.array(z.string()).min(1, "At least one bucket ID is required"),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCaptureSchema, insertBucketSchema, insertFolderSchema, insertTaskTemplateSchema } from "@shared/schema";
+import { insertCaptureSchema, insertBucketSchema, insertFolderSchema, insertTaskTemplateSchema, reorderBucketsSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import express from "express";
@@ -135,6 +135,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(bucket);
     } catch (error) {
       res.status(500).json({ error: "Failed to create bucket" });
+    }
+  });
+
+  app.post("/api/buckets/reorder", async (req, res) => {
+    try {
+      const validation = reorderBucketsSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid reorder data", details: validation.error });
+      }
+
+      const { orderedIds } = validation.data;
+      const buckets = await storage.reorderBuckets(mockUserId, orderedIds);
+      res.json(buckets);
+    } catch (error) {
+      console.error("Bucket reorder error:", error);
+      if (error instanceof Error && error.message.includes("Invalid bucket IDs")) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(500).json({ error: "Failed to reorder buckets" });
     }
   });
 

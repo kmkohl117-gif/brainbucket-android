@@ -13,6 +13,7 @@ export interface IStorage {
   createBucket(bucket: InsertBucket): Promise<Bucket>;
   updateBucket(id: string, bucket: Partial<InsertBucket>): Promise<Bucket | undefined>;
   deleteBucket(id: string): Promise<boolean>;
+  reorderBuckets(userId: string, orderedIds: string[]): Promise<Bucket[]>;
   
   // Folders
   getFoldersByBucket(bucketId: string): Promise<Folder[]>;
@@ -161,6 +162,30 @@ export class MemStorage implements IStorage {
 
   async deleteBucket(id: string): Promise<boolean> {
     return this.buckets.delete(id);
+  }
+
+  async reorderBuckets(userId: string, orderedIds: string[]): Promise<Bucket[]> {
+    // Get all user's buckets to validate the ordered IDs
+    const userBuckets = await this.getBucketsByUser(userId);
+    const validBucketIds = new Set(userBuckets.map(b => b.id));
+
+    // Validate that all provided IDs belong to this user
+    const invalidIds = orderedIds.filter(id => !validBucketIds.has(id));
+    if (invalidIds.length > 0) {
+      throw new Error(`Invalid bucket IDs: ${invalidIds.join(', ')}`);
+    }
+
+    // Update the order field for each bucket based on its position in orderedIds
+    orderedIds.forEach((bucketId, index) => {
+      const bucket = this.buckets.get(bucketId);
+      if (bucket && bucket.userId === userId) {
+        const updated = { ...bucket, order: index };
+        this.buckets.set(bucketId, updated);
+      }
+    });
+
+    // Return the updated buckets in their new order
+    return this.getBucketsByUser(userId);
   }
 
   // Folders

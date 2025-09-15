@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -7,12 +7,15 @@ import { BottomNavigation } from './BottomNavigation';
 import { useStore } from '@/store/useStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { Search, Plus, Palette, CheckSquare, ShoppingCart, Lightbulb, Lock, Heart, Home, Briefcase, Camera, MapPin } from 'lucide-react';
+import { Search, Plus, Palette, CheckSquare, ShoppingCart, Lightbulb, Lock, Heart, Home, Briefcase, Camera, MapPin, GripVertical } from 'lucide-react';
 import type { Bucket, Capture, InsertBucket } from '@shared/schema';
+import { SortableList, SortableItem } from '@/components/dnd';
+import { useToast } from '@/hooks/use-toast';
 
 export function BucketsScreen() {
   const { setCurrentScreen, setSelectedBucket } = useStore();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [showAddBucketDialog, setShowAddBucketDialog] = useState(false);
   const [newBucketData, setNewBucketData] = useState({
     name: '',
@@ -60,6 +63,47 @@ export function BucketsScreen() {
     },
   });
 
+  const reorderBucketsMutation = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      const response = await apiRequest('POST', '/api/buckets/reorder', { orderedIds });
+      return response.json();
+    },
+    onMutate: async (orderedIds: string[]) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/buckets'] });
+
+      // Snapshot the previous value
+      const previousBuckets = queryClient.getQueryData<Bucket[]>(['/api/buckets']);
+
+      // Optimistically update bucket order
+      if (previousBuckets) {
+        const reorderedBuckets = orderedIds
+          .map(id => previousBuckets.find(bucket => bucket.id === id))
+          .filter(Boolean) as Bucket[];
+        
+        queryClient.setQueryData(['/api/buckets'], reorderedBuckets);
+      }
+
+      // Return a context object with the snapshotted value
+      return { previousBuckets };
+    },
+    onError: (error, orderedIds, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousBuckets) {
+        queryClient.setQueryData(['/api/buckets'], context.previousBuckets);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to reorder buckets. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: () => {
+      // Invalidate and refetch bucket data after successful reorder
+      queryClient.invalidateQueries({ queryKey: ['/api/buckets'] });
+    },
+  });
+
   const handleAddBucketClick = () => {
     setShowAddBucketDialog(true);
   };
@@ -78,6 +122,11 @@ export function BucketsScreen() {
     setNewBucketData({ name: '', color: '#3B82F6', icon: 'fas fa-folder' });
     setShowAddBucketDialog(false);
   };
+
+  const handleReorderBuckets = useCallback((reorderedBuckets: Bucket[]) => {
+    const orderedIds = reorderedBuckets.map(bucket => bucket.id);
+    reorderBucketsMutation.mutate(orderedIds);
+  }, [reorderBucketsMutation]);
 
   const bucketIcons = {
     'To-Dos': 'fas fa-check-square',
@@ -154,41 +203,64 @@ export function BucketsScreen() {
           </CardContent>
         </Card>
 
-        {/* Bucket Cards */}
-        {buckets.map((bucket) => {
-          const itemCount = getItemCount(bucket.id);
-          const hasIndicator = hasUnorganizedItems(bucket.id);
-          
-          return (
-            <Card
-              key={bucket.id}
-              className="cursor-pointer hover:scale-[1.02] transition-transform"
-              style={{
-                background: `linear-gradient(135deg, ${bucket.color}, color-mix(in srgb, ${bucket.color} 90%, white))`,
-                border: `1px solid color-mix(in srgb, ${bucket.color} 80%, transparent)`
-              }}
-              onClick={() => handleBucketClick(bucket.id)}
-              data-testid={`card-bucket-${bucket.name.toLowerCase().replace(/\s+/g, '-')}`}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mr-3">
-                      <i className={`${bucketIcons[bucket.name as keyof typeof bucketIcons] || bucket.icon} text-xl text-white`}></i>
+        {/* Sortable Bucket Cards */}
+        <SortableList
+          items={buckets}
+          onReorder={handleReorderBuckets}
+          getId={(bucket) => bucket.id}
+          strategy="vertical"
+          disabled={reorderBucketsMutation.isPending}
+          className="space-y-4"
+        >
+          {(bucket, index, isDragging) => {
+            const itemCount = getItemCount(bucket.id);
+            const hasIndicator = hasUnorganizedItems(bucket.id);
+            
+            return (
+              <SortableItem 
+                key={bucket.id} 
+                id={bucket.id}
+                className={isDragging ? "opacity-50" : ""}
+              >
+                <Card
+                  className="cursor-pointer hover:scale-[1.02] transition-transform relative"
+                  style={{
+                    background: `linear-gradient(135deg, ${bucket.color}, color-mix(in srgb, ${bucket.color} 90%, white))`,
+                    border: `1px solid color-mix(in srgb, ${bucket.color} 80%, transparent)`
+                  }}
+                  onClick={(e) => {
+                    // Prevent click when dragging
+                    if (isDragging) return;
+                    handleBucketClick(bucket.id);
+                  }}
+                  data-testid={`card-bucket-${bucket.name.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mr-3">
+                          <i className={`${bucketIcons[bucket.name as keyof typeof bucketIcons] || bucket.icon} text-xl text-white`}></i>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-white">{bucket.name}</h3>
+                          <p className="text-sm text-white/80">{itemCount} items</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {hasIndicator && (
+                          <div className="w-3 h-3 bg-white rounded-full" data-testid={`indicator-${bucket.id}`}></div>
+                        )}
+                        <div className="text-white/60 hover:text-white cursor-grab active:cursor-grabbing">
+                          <GripVertical className="w-4 h-4" />
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-white">{bucket.name}</h3>
-                      <p className="text-sm text-white/80">{itemCount} items</p>
-                    </div>
-                  </div>
-                  {hasIndicator && (
-                    <div className="w-3 h-3 bg-white rounded-full" data-testid={`indicator-${bucket.id}`}></div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                  </CardContent>
+                </Card>
+              </SortableItem>
+            );
+          }}
+        </SortableList>
 
         {/* Add New Bucket */}
         <Card 
