@@ -1,13 +1,24 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { BottomNavigation } from './BottomNavigation';
 import { useStore } from '@/store/useStore';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Plus } from 'lucide-react';
-import type { Bucket, Capture } from '@shared/schema';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
+import { Search, Plus, Palette, CheckSquare, ShoppingCart, Lightbulb, Lock, Heart, Home, Briefcase, Camera, MapPin } from 'lucide-react';
+import type { Bucket, Capture, InsertBucket } from '@shared/schema';
 
 export function BucketsScreen() {
   const { setCurrentScreen, setSelectedBucket } = useStore();
+  const queryClient = useQueryClient();
+  const [showAddBucketDialog, setShowAddBucketDialog] = useState(false);
+  const [newBucketData, setNewBucketData] = useState({
+    name: '',
+    color: '#3B82F6',
+    icon: 'fas fa-folder'
+  });
 
   const { data: buckets = [] } = useQuery<Bucket[]>({
     queryKey: ['/api/buckets'],
@@ -37,6 +48,37 @@ export function BucketsScreen() {
     setCurrentScreen('bucket-view');
   };
 
+  const createBucketMutation = useMutation({
+    mutationFn: async (bucketData: Omit<InsertBucket, 'userId'>) => {
+      const response = await apiRequest('POST', '/api/buckets', bucketData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/buckets'] });
+      setShowAddBucketDialog(false);
+      setNewBucketData({ name: '', color: '#3B82F6', icon: 'fas fa-folder' });
+    },
+  });
+
+  const handleAddBucketClick = () => {
+    setShowAddBucketDialog(true);
+  };
+
+  const handleCreateBucket = () => {
+    if (!newBucketData.name.trim()) return;
+
+    createBucketMutation.mutate({
+      name: newBucketData.name.trim(),
+      color: newBucketData.color,
+      icon: newBucketData.icon,
+    });
+  };
+
+  const resetForm = () => {
+    setNewBucketData({ name: '', color: '#3B82F6', icon: 'fas fa-folder' });
+    setShowAddBucketDialog(false);
+  };
+
   const bucketIcons = {
     'To-Dos': 'fas fa-check-square',
     'Creatives': 'fas fa-palette',
@@ -45,6 +87,34 @@ export function BucketsScreen() {
     'Vault': 'fas fa-lock',
     'Health': 'fas fa-heart',
   };
+
+  const predefinedColors = [
+    '#3B82F6', // Blue
+    '#10B981', // Green  
+    '#F59E0B', // Yellow
+    '#EF4444', // Red
+    '#8B5CF6', // Purple
+    '#EC4899', // Pink
+    '#06B6D4', // Cyan
+    '#84CC16', // Lime
+    '#F97316', // Orange
+    '#6B7280'  // Gray
+  ];
+
+  const predefinedIcons = [
+    { name: 'Folder', icon: 'fas fa-folder' },
+    { name: 'Tasks', icon: 'fas fa-check-square' },
+    { name: 'Creative', icon: 'fas fa-palette' },
+    { name: 'Shopping', icon: 'fas fa-shopping-cart' },
+    { name: 'Ideas', icon: 'fas fa-lightbulb' },
+    { name: 'Security', icon: 'fas fa-lock' },
+    { name: 'Health', icon: 'fas fa-heart' },
+    { name: 'Work', icon: 'fas fa-briefcase' },
+    { name: 'Home', icon: 'fas fa-home' },
+    { name: 'Travel', icon: 'fas fa-map-marker-alt' },
+    { name: 'Photos', icon: 'fas fa-camera' },
+    { name: 'Music', icon: 'fas fa-music' }
+  ];
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -121,7 +191,10 @@ export function BucketsScreen() {
         })}
 
         {/* Add New Bucket */}
-        <Card className="border-2 border-dashed border-border hover:bg-muted transition-colors cursor-pointer">
+        <Card 
+          className="border-2 border-dashed border-border hover:bg-muted transition-colors cursor-pointer"
+          onClick={handleAddBucketClick}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-center" data-testid="button-add-bucket">
               <Plus className="w-5 h-5 text-muted-foreground mr-2" />
@@ -132,6 +205,111 @@ export function BucketsScreen() {
       </div>
 
       <BottomNavigation />
+      
+      {/* Add Bucket Dialog */}
+      <Dialog open={showAddBucketDialog} onOpenChange={setShowAddBucketDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Bucket</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Bucket Name */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Bucket Name</label>
+              <Input
+                value={newBucketData.name}
+                onChange={(e) => setNewBucketData({ ...newBucketData, name: e.target.value })}
+                placeholder="Enter bucket name"
+                className="w-full"
+                data-testid="input-bucket-name"
+              />
+            </div>
+
+            {/* Color Picker */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Bucket Color</label>
+              <div className="grid grid-cols-5 gap-2">
+                {predefinedColors.map((color) => (
+                  <button
+                    key={color}
+                    className={`w-10 h-10 rounded-full border-2 transition-all ${
+                      newBucketData.color === color
+                        ? 'border-foreground scale-110'
+                        : 'border-muted hover:border-muted-foreground'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => setNewBucketData({ ...newBucketData, color })}
+                    data-testid={`color-option-${color.replace('#', '')}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Icon Picker */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Bucket Icon</label>
+              <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+                {predefinedIcons.map((iconOption) => (
+                  <button
+                    key={iconOption.icon}
+                    className={`p-3 border rounded-lg flex flex-col items-center space-y-1 transition-all ${
+                      newBucketData.icon === iconOption.icon
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-muted-foreground hover:bg-muted'
+                    }`}
+                    onClick={() => setNewBucketData({ ...newBucketData, icon: iconOption.icon })}
+                    data-testid={`icon-option-${iconOption.name.toLowerCase()}`}
+                  >
+                    <i className={`${iconOption.icon} text-lg`} style={{ color: newBucketData.icon === iconOption.icon ? newBucketData.color : undefined }} />
+                    <span className="text-xs text-center">{iconOption.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Preview */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Preview</label>
+              <Card
+                className="p-4"
+                style={{
+                  background: `linear-gradient(135deg, ${newBucketData.color}, color-mix(in srgb, ${newBucketData.color} 90%, white))`,
+                  border: `1px solid color-mix(in srgb, ${newBucketData.color} 80%, transparent)`
+                }}
+              >
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mr-3">
+                    <i className={`${newBucketData.icon} text-xl text-white`}></i>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">{newBucketData.name || 'Bucket Name'}</h3>
+                    <p className="text-sm text-white/80">0 items</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={resetForm}
+              disabled={createBucketMutation.isPending}
+              data-testid="button-cancel-bucket"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateBucket}
+              disabled={!newBucketData.name.trim() || createBucketMutation.isPending}
+              data-testid="button-create-bucket"
+            >
+              {createBucketMutation.isPending ? 'Creating...' : 'Create Bucket'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
