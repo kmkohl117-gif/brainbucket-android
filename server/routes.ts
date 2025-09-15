@@ -107,6 +107,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/buckets/:id", async (req, res) => {
+    try {
+      const bucket = await storage.getBucket(req.params.id);
+      if (!bucket) {
+        return res.status(404).json({ error: "Bucket not found" });
+      }
+      res.json(bucket);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch bucket" });
+    }
+  });
+
   app.post("/api/buckets", async (req, res) => {
     try {
       const validation = insertBucketSchema.safeParse(req.body);
@@ -129,6 +141,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(folders);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch folders" });
+    }
+  });
+
+  app.get("/api/folders/:id", async (req, res) => {
+    try {
+      const folder = await storage.getFolder(req.params.id);
+      if (!folder) {
+        return res.status(404).json({ error: "Folder not found" });
+      }
+      res.json(folder);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch folder" });
     }
   });
 

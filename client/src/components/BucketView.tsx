@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 import type { Bucket, Capture, Folder } from '@shared/schema';
 
 export function BucketView() {
-  const { navigation, setCurrentScreen, setSelectedCapture, updateQuickCapture } = useStore();
+  const { navigation, setCurrentScreen, setSelectedCapture, setSelectedFolder, updateQuickCapture } = useStore();
   const queryClient = useQueryClient();
 
   const { data: bucket } = useQuery<Bucket>({
@@ -28,6 +28,16 @@ export function BucketView() {
     enabled: !!navigation.selectedBucketId && navigation.selectedBucketId !== 'unsorted',
   });
 
+  const { data: folderCaptures = [] } = useQuery<Capture[]>({
+    queryKey: ['/api/captures', 'folder', navigation.selectedFolderId],
+    enabled: !!navigation.selectedFolderId,
+  });
+
+  const { data: selectedFolder } = useQuery<Folder>({
+    queryKey: ['/api/folders', navigation.selectedFolderId],
+    enabled: !!navigation.selectedFolderId,
+  });
+
   const updateCaptureMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Capture> }) => {
       const response = await apiRequest('PATCH', `/api/captures/${id}`, updates);
@@ -41,6 +51,12 @@ export function BucketView() {
 
   const inboxCaptures = captures.filter(capture => !capture.folderId && !capture.isCompleted);
   const completedCount = captures.filter(capture => capture.isCompleted).length;
+  
+  // Determine which view we're showing
+  const isViewingFolder = !!navigation.selectedFolderId;
+  const currentCaptures = isViewingFolder ? folderCaptures : inboxCaptures;
+  const currentTitle = isViewingFolder ? selectedFolder?.name || 'Folder' : 'Inbox';
+  const currentItemCount = isViewingFolder ? folderCaptures.length : inboxCaptures.length;
 
   const handleCaptureClick = (captureId: string) => {
     setSelectedCapture(captureId);
@@ -69,6 +85,14 @@ export function BucketView() {
     setCurrentScreen('quick-capture');
   };
 
+  const handleFolderClick = (folderId: string) => {
+    setSelectedFolder(folderId);
+  };
+
+  const handleBackToFolder = () => {
+    setSelectedFolder(undefined);
+  };
+
   const getCaptureTypeColor = (type: string) => {
     switch (type) {
       case 'task': return 'bg-primary/10 text-primary';
@@ -80,6 +104,11 @@ export function BucketView() {
 
   const bucketName = bucket?.name || (navigation.selectedBucketId === 'unsorted' ? 'Unsorted' : 'Unknown');
   const totalItems = captures.length;
+  
+  // Header navigation logic
+  const headerTitle = isViewingFolder ? selectedFolder?.name || 'Folder' : bucketName;
+  const showBackButton = isViewingFolder;
+  const onBackClick = showBackButton ? handleBackToFolder : () => setCurrentScreen('buckets-screen');
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -90,15 +119,17 @@ export function BucketView() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setCurrentScreen('buckets-screen')}
+              onClick={onBackClick}
               className="mr-3"
               data-testid="button-back"
             >
               <ArrowLeft className="w-5 h-5 text-muted-foreground" />
             </Button>
             <div>
-              <h1 className="text-xl font-semibold text-foreground">{bucketName}</h1>
-              <p className="text-sm text-muted-foreground">{totalItems} items total</p>
+              <h1 className="text-xl font-semibold text-foreground">{headerTitle}</h1>
+              <p className="text-sm text-muted-foreground">
+                {isViewingFolder ? `${currentItemCount} items in folder` : `${totalItems} items total`}
+              </p>
             </div>
           </div>
           <Button
@@ -114,23 +145,23 @@ export function BucketView() {
 
       {/* Content */}
       <div className="p-4 space-y-6">
-        {/* Inbox Section */}
+        {/* Current View Section (Inbox or Folder Contents) */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">Inbox</h2>
-            <span className="text-sm text-muted-foreground">{inboxCaptures.length} items</span>
+            <h2 className="text-lg font-semibold text-foreground">{currentTitle}</h2>
+            <span className="text-sm text-muted-foreground">{currentItemCount} items</span>
           </div>
           
-          {/* Inbox Items */}
+          {/* Current View Items */}
           <div className="space-y-2">
-            {inboxCaptures.length === 0 ? (
+            {currentCaptures.length === 0 ? (
               <Card>
                 <CardContent className="p-4 text-center text-muted-foreground">
-                  No items in inbox
+                  {isViewingFolder ? 'No items in this folder' : 'No items in inbox'}
                 </CardContent>
               </Card>
             ) : (
-              inboxCaptures.map((capture) => (
+              currentCaptures.map((capture) => (
                 <Card
                   key={capture.id}
                   className="hover:bg-muted/50 transition-colors cursor-pointer"
@@ -180,8 +211,8 @@ export function BucketView() {
           </div>
         </div>
 
-        {/* Folders Section */}
-        {navigation.selectedBucketId !== 'unsorted' && (
+        {/* Folders Section - Only show when not viewing a folder */}
+        {!isViewingFolder && navigation.selectedBucketId !== 'unsorted' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">Folders</h2>
@@ -208,6 +239,7 @@ export function BucketView() {
                     <Card
                       key={folder.id}
                       className="hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => handleFolderClick(folder.id)}
                       data-testid={`card-folder-${folder.id}`}
                     >
                       <CardContent className="p-4">
@@ -225,7 +257,12 @@ export function BucketView() {
                             {hasItems && (
                               <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
                             )}
-                            <Button variant="ghost" size="sm" className="p-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="p-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <GripVertical className="w-4 h-4 text-muted-foreground" />
                             </Button>
                           </div>
@@ -239,21 +276,23 @@ export function BucketView() {
           </div>
         )}
 
-        {/* Done Folder */}
-        <Card className="bg-muted/50 border-dashed border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <CheckCircle className="text-accent text-xl mr-3" />
-                <div>
-                  <h3 className="font-medium text-foreground">Done</h3>
-                  <p className="text-sm text-muted-foreground">Completed tasks auto-collect here</p>
+        {/* Done Folder - Only show when not viewing a folder */}
+        {!isViewingFolder && (
+          <Card className="bg-muted/50 border-dashed border-border">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <CheckCircle className="text-accent text-xl mr-3" />
+                  <div>
+                    <h3 className="font-medium text-foreground">Done</h3>
+                    <p className="text-sm text-muted-foreground">Completed tasks auto-collect here</p>
+                  </div>
                 </div>
+                <span className="text-sm text-muted-foreground">{completedCount} items</span>
               </div>
-              <span className="text-sm text-muted-foreground">{completedCount} items</span>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <BottomNavigation />
