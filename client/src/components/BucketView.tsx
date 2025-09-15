@@ -139,7 +139,7 @@ export function BucketView() {
                   <CardContent className="p-3">
                     <div className="flex items-start">
                       <Checkbox
-                        checked={capture.isCompleted}
+                        checked={capture.isCompleted || false}
                         onCheckedChange={() => handleCompleteToggle(capture)}
                         className="mt-1 mr-3"
                         onClick={(e) => e.stopPropagation()}
@@ -152,7 +152,7 @@ export function BucketView() {
                             {capture.type}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(capture.createdAt), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(capture.createdAt || new Date()), { addSuffix: true })}
                           </span>
                         </div>
                       </div>

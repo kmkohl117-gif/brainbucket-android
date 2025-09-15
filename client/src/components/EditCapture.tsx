@@ -9,7 +9,7 @@ import { useStore } from '@/store/useStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { X, CheckSquare, Lightbulb, Bookmark, Star, CheckCircle, Camera, Paperclip, Link as LinkIcon, Trash2 } from 'lucide-react';
-import type { Capture, Bucket, Folder } from '@shared/schema';
+import type { Capture, Bucket, Folder, CaptureType } from '@shared/schema';
 
 export function EditCapture() {
   const { navigation, setCurrentScreen } = useStore();
@@ -54,11 +54,11 @@ export function EditCapture() {
       setFormData({
         text: capture.text,
         description: capture.description || '',
-        type: capture.type as 'task' | 'idea' | 'reference',
+        type: capture.type as CaptureType,
         bucketId: capture.bucketId,
         folderId: capture.folderId || '',
-        isStarred: capture.isStarred,
-        isCompleted: capture.isCompleted,
+        isStarred: capture.isStarred || false,
+        isCompleted: capture.isCompleted || false,
       });
     }
   }, [capture]);
@@ -153,7 +153,7 @@ export function EditCapture() {
                 <Button
                   key={type.id}
                   variant={isSelected ? "default" : "outline"}
-                  onClick={() => setFormData({ ...formData, type: type.id })}
+                  onClick={() => setFormData({ ...formData, type: type.id as CaptureType })}
                   className="p-3 h-auto flex-col space-y-1"
                   data-testid={`button-type-${type.id}`}
                 >
@@ -191,14 +191,14 @@ export function EditCapture() {
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Folder (optional)</label>
             <Select
-              value={formData.folderId}
-              onValueChange={(folderId) => setFormData({ ...formData, folderId })}
+              value={formData.folderId || "none"}
+              onValueChange={(folderId) => setFormData({ ...formData, folderId: folderId === "none" ? "" : folderId })}
             >
               <SelectTrigger data-testid="select-folder">
                 <SelectValue placeholder="None (Inbox)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None (Inbox)</SelectItem>
+                <SelectItem value="none">None (Inbox)</SelectItem>
                 {folders.map((folder) => (
                   <SelectItem key={folder.id} value={folder.id}>
                     {folder.name}

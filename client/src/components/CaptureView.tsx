@@ -129,7 +129,7 @@ export function CaptureView() {
                   {bucket?.name || 'Unsorted'}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  Created {formatDistanceToNow(new Date(capture.createdAt), { addSuffix: true })}
+                  Created {formatDistanceToNow(new Date(capture.createdAt || new Date()), { addSuffix: true })}
                 </span>
               </div>
             </div>
