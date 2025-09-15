@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/store/useStore';
-import { Plus, Grid3X3 } from 'lucide-react';
+import { Plus, Grid3X3, Search } from 'lucide-react';
 
 export function BottomNavigation() {
   const { navigation, setCurrentScreen, updateQuickCapture } = useStore();
@@ -27,6 +27,15 @@ export function BottomNavigation() {
         >
           <Plus className="w-6 h-6" />
           <span className="text-xs">Capture</span>
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={() => (window as any).openGlobalSearch?.()}
+          className="flex flex-col items-center p-2 space-y-1 text-muted-foreground hover:text-foreground"
+          data-testid="nav-search"
+        >
+          <Search className="w-6 h-6" />
+          <span className="text-xs">Search</span>
         </Button>
         <Button
           variant="ghost"

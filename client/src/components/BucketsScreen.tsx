@@ -171,7 +171,12 @@ export function BucketsScreen() {
       <div className="bg-card border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-foreground">Buckets</h1>
-          <Button variant="ghost" size="sm" data-testid="button-search">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => (window as any).openGlobalSearch?.()}
+            data-testid="button-search"
+          >
             <Search className="w-5 h-5 text-muted-foreground" />
           </Button>
         </div>
