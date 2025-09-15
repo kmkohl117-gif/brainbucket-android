@@ -30,6 +30,10 @@ export function QuickCapture() {
       queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket'] });
       // Invalidate the specific bucket query that BucketView uses
       queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket', newCapture.bucketId] });
+      // Invalidate folder-specific queries when capture is added to a folder
+      if (newCapture.folderId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/captures', 'folder', newCapture.folderId] });
+      }
     },
   });
 

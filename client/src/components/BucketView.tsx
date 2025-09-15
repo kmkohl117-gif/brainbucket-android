@@ -123,6 +123,7 @@ export function BucketView() {
   const handleQuickCapture = () => {
     updateQuickCapture({ 
       selectedBucketId: navigation.selectedBucketId || 'unsorted',
+      selectedFolderId: isViewingFolder ? navigation.selectedFolderId : undefined,
       text: '' 
     });
     setCurrentScreen('quick-capture');
