@@ -1,6 +1,9 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useState } from 'react';
 import { BottomNavigation } from './BottomNavigation';
 import { useStore } from '@/store/useStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +15,8 @@ import type { Bucket, Capture, Folder } from '@shared/schema';
 export function BucketView() {
   const { navigation, setCurrentScreen, setSelectedCapture, setSelectedFolder, updateQuickCapture } = useStore();
   const queryClient = useQueryClient();
+  const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
 
   const { data: bucket } = useQuery<Bucket>({
     queryKey: ['/api/buckets', navigation.selectedBucketId],
@@ -46,6 +51,18 @@ export function BucketView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
       queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket', navigation.selectedBucketId] });
+    },
+  });
+
+  const createFolderMutation = useMutation({
+    mutationFn: async ({ name, bucketId }: { name: string; bucketId: string }) => {
+      const response = await apiRequest('POST', '/api/folders', { name, bucketId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/folders', 'bucket', navigation.selectedBucketId] });
+      setShowCreateFolderDialog(false);
+      setNewFolderName('');
     },
   });
 
@@ -216,7 +233,13 @@ export function BucketView() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">Folders</h2>
-              <Button variant="ghost" size="sm" className="text-sm text-primary" data-testid="button-new-folder">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-sm text-primary" 
+                onClick={() => setShowCreateFolderDialog(true)}
+                data-testid="button-new-folder"
+              >
                 <Plus className="w-4 h-4 mr-1" />
                 New Folder
               </Button>
@@ -296,6 +319,53 @@ export function BucketView() {
       </div>
 
       <BottomNavigation />
+
+      {/* Create Folder Dialog */}
+      <Dialog open={showCreateFolderDialog} onOpenChange={setShowCreateFolderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Folder</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Folder Name</label>
+              <Input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Enter folder name"
+                className="mt-1"
+                data-testid="input-folder-name"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateFolderDialog(false);
+                setNewFolderName('');
+              }}
+              data-testid="button-cancel-folder"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (newFolderName.trim() && navigation.selectedBucketId) {
+                  createFolderMutation.mutate({
+                    name: newFolderName.trim(),
+                    bucketId: navigation.selectedBucketId
+                  });
+                }
+              }}
+              disabled={!newFolderName.trim() || createFolderMutation.isPending}
+              data-testid="button-create-folder"
+            >
+              {createFolderMutation.isPending ? 'Creating...' : 'Create Folder'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
