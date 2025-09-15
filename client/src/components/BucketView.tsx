@@ -5,7 +5,7 @@ import { BottomNavigation } from './BottomNavigation';
 import { useStore } from '@/store/useStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { ArrowLeft, Plus, Star, GripVertical, Folder, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Star, GripVertical, Folder as FolderIcon, CheckCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { Bucket, Capture, Folder } from '@shared/schema';
 
@@ -212,7 +212,7 @@ export function BucketView() {
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
-                            <Folder className="text-accent text-xl mr-3" />
+                            <FolderIcon className="text-accent text-xl mr-3" />
                             <div>
                               <h3 className="font-medium text-foreground">{folder.name}</h3>
                               <p className="text-sm text-muted-foreground">

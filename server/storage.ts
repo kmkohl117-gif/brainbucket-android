@@ -116,7 +116,7 @@ export class MemStorage implements IStorage {
   async getBucketsByUser(userId: string): Promise<Bucket[]> {
     return Array.from(this.buckets.values())
       .filter(bucket => bucket.userId === userId)
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
   async getBucket(id: string): Promise<Bucket | undefined> {
@@ -153,7 +153,7 @@ export class MemStorage implements IStorage {
   async getFoldersByBucket(bucketId: string): Promise<Folder[]> {
     return Array.from(this.folders.values())
       .filter(folder => folder.bucketId === bucketId)
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
   async getFolder(id: string): Promise<Folder | undefined> {
@@ -193,7 +193,7 @@ export class MemStorage implements IStorage {
         // Starred items first, then by creation date
         if (a.isStarred && !b.isStarred) return -1;
         if (!a.isStarred && b.isStarred) return 1;
-        return b.createdAt.getTime() - a.createdAt.getTime();
+        return (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0);
       });
   }
 
@@ -203,7 +203,7 @@ export class MemStorage implements IStorage {
       .sort((a, b) => {
         if (a.isStarred && !b.isStarred) return -1;
         if (!a.isStarred && b.isStarred) return 1;
-        return a.order - b.order;
+        return (a.order || 0) - (b.order || 0);
       });
   }
 
@@ -213,7 +213,7 @@ export class MemStorage implements IStorage {
       .sort((a, b) => {
         if (a.isStarred && !b.isStarred) return -1;
         if (!a.isStarred && b.isStarred) return 1;
-        return a.order - b.order;
+        return (a.order || 0) - (b.order || 0);
       });
   }
 
@@ -231,7 +231,7 @@ export class MemStorage implements IStorage {
       isStarred: insertCapture.isStarred || false,
       isCompleted: insertCapture.isCompleted || false,
       order: insertCapture.order || 0,
-      attachments: insertCapture.attachments || []
+      attachments: insertCapture.attachments as Array<{id: string; name: string; type: string; url: string; size?: number}> || []
     };
     this.captures.set(id, capture);
     return capture;
@@ -262,7 +262,8 @@ export class MemStorage implements IStorage {
       ...insertTemplate, 
       id, 
       createdAt: new Date(),
-      isDefault: insertTemplate.isDefault || false
+      isDefault: insertTemplate.isDefault || false,
+      userId: insertTemplate.userId || null
     };
     this.taskTemplates.set(id, template);
     return template;
