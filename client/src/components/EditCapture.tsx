@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useStore } from '@/store/useStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { X, CheckSquare, Lightbulb, Bookmark, Star, CheckCircle, Camera, Paperclip, Link as LinkIcon, Trash2 } from 'lucide-react';
+import { X, CheckSquare, Lightbulb, Bookmark, Star, CheckCircle, Camera, Paperclip, Link as LinkIcon, Trash2, Bell, Clock, CalendarDays } from 'lucide-react';
 import type { Capture, Bucket, Folder, CaptureType } from '@shared/schema';
+import { reminderScheduler, REMINDER_PRESETS } from '@/lib/reminders';
+import { format } from 'date-fns';
 
 export function EditCapture() {
   const { navigation, setCurrentScreen } = useStore();
@@ -23,6 +25,8 @@ export function EditCapture() {
     folderId: '',
     isStarred: false,
     isCompleted: false,
+    reminderAt: null as Date | null,
+    dueAt: null as Date | null,
   });
 
   const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
@@ -53,7 +57,7 @@ export function EditCapture() {
   });
 
   const updateCaptureMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Capture> }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
       const response = await apiRequest('PATCH', `/api/captures/${id}`, updates);
       return response.json();
     },
@@ -100,6 +104,8 @@ export function EditCapture() {
         folderId: capture.folderId || '',
         isStarred: capture.isStarred || false,
         isCompleted: capture.isCompleted || false,
+        reminderAt: capture.reminderAt ? new Date(capture.reminderAt) : null,
+        dueAt: capture.dueAt ? new Date(capture.dueAt) : null,
       });
       setAttachments(capture.attachments || []);
     }
@@ -136,6 +142,8 @@ export function EditCapture() {
         isStarred: formData.isStarred,
         isCompleted: formData.isCompleted,
         attachments: attachments,
+        reminderAt: formData.reminderAt ? formData.reminderAt.toISOString() : undefined,
+        dueAt: formData.dueAt ? formData.dueAt.toISOString() : undefined,
       }
     });
   };
@@ -331,6 +339,149 @@ export function EditCapture() {
                   data-testid="switch-completed"
                 />
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Reminder Controls (for Tasks) */}
+        {formData.type === 'task' && (
+          <Card>
+            <CardContent className="p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Bell className="w-5 h-5 text-primary mr-3" />
+                  <span className="font-medium text-foreground">Reminder</span>
+                </div>
+                {formData.reminderAt && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, reminderAt: null })}
+                    className="text-muted-foreground hover:text-foreground"
+                    data-testid="button-clear-reminder"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+
+              {formData.reminderAt ? (
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Clock className="w-4 h-4 mr-2" />
+                    <span>Set for {format(formData.reminderAt, 'MMM d, yyyy \'at\' h:mm a')}</span>
+                  </div>
+                  
+                  {/* Custom date/time input */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="date"
+                      value={format(formData.reminderAt, 'yyyy-MM-dd')}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const newDate = new Date(e.target.value);
+                          const currentTime = formData.reminderAt || new Date();
+                          newDate.setHours(currentTime.getHours(), currentTime.getMinutes());
+                          setFormData({ ...formData, reminderAt: newDate });
+                        }
+                      }}
+                      className="text-sm"
+                      data-testid="input-reminder-date"
+                    />
+                    <Input
+                      type="time"
+                      value={format(formData.reminderAt, 'HH:mm')}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const [hours, minutes] = e.target.value.split(':').map(Number);
+                          const newDate = new Date(formData.reminderAt || new Date());
+                          newDate.setHours(hours, minutes);
+                          setFormData({ ...formData, reminderAt: newDate });
+                        }
+                      }}
+                      className="text-sm"
+                      data-testid="input-reminder-time"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-sm text-muted-foreground">Set a reminder for this task</div>
+                  
+                  {/* Quick reminder presets */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, reminderAt: REMINDER_PRESETS['in-1h']() })}
+                      className="text-xs"
+                      data-testid="button-reminder-1h"
+                    >
+                      In 1 hour
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, reminderAt: REMINDER_PRESETS['tonight']() })}
+                      className="text-xs"
+                      data-testid="button-reminder-tonight"
+                    >
+                      Tonight
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, reminderAt: REMINDER_PRESETS['tomorrow-9am']() })}
+                      className="text-xs"
+                      data-testid="button-reminder-tomorrow"
+                    >
+                      Tomorrow 9am
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, reminderAt: REMINDER_PRESETS['next-week']() })}
+                      className="text-xs"
+                      data-testid="button-reminder-next-week"
+                    >
+                      Next week
+                    </Button>
+                  </div>
+
+                  {/* Custom date/time input */}
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">Or pick a custom date & time:</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="date"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const newDate = new Date(e.target.value);
+                            newDate.setHours(9, 0); // Default to 9 AM
+                            setFormData({ ...formData, reminderAt: newDate });
+                          }
+                        }}
+                        className="text-sm"
+                        data-testid="input-custom-reminder-date"
+                      />
+                      <Input
+                        type="time"
+                        defaultValue="09:00"
+                        onChange={(e) => {
+                          if (e.target.value && formData.reminderAt) {
+                            const [hours, minutes] = e.target.value.split(':').map(Number);
+                            const newDate = new Date(formData.reminderAt);
+                            newDate.setHours(hours, minutes);
+                            setFormData({ ...formData, reminderAt: newDate });
+                          }
+                        }}
+                        className="text-sm"
+                        data-testid="input-custom-reminder-time"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

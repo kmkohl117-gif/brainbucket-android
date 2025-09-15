@@ -35,6 +35,11 @@ export interface IStorage {
   getTaskTemplates(userId?: string): Promise<TaskTemplate[]>;
   createTaskTemplate(template: InsertTaskTemplate): Promise<TaskTemplate>;
   deleteTaskTemplate(id: string): Promise<boolean>;
+  
+  // Reminders
+  getCapturesWithReminders(userId: string): Promise<Capture[]>;
+  getCapturesDue(userId: string, beforeDate?: Date): Promise<Capture[]>;
+  updateReminderNotified(captureId: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -320,6 +325,49 @@ export class MemStorage implements IStorage {
     const template = this.taskTemplates.get(id);
     if (template && template.isDefault) return false; // Can't delete default templates
     return this.taskTemplates.delete(id);
+  }
+
+  // Reminders
+  async getCapturesWithReminders(userId: string): Promise<Capture[]> {
+    const now = new Date();
+    return Array.from(this.captures.values())
+      .filter(capture => 
+        capture.userId === userId && 
+        capture.reminderAt && 
+        capture.reminderAt > now &&
+        (!capture.snoozedUntil || capture.snoozedUntil <= now) &&
+        !capture.isCompleted
+      )
+      .sort((a, b) => {
+        const aTime = a.reminderAt?.getTime() || 0;
+        const bTime = b.reminderAt?.getTime() || 0;
+        return aTime - bTime;
+      });
+  }
+
+  async getCapturesDue(userId: string, beforeDate?: Date): Promise<Capture[]> {
+    const cutoff = beforeDate || new Date();
+    return Array.from(this.captures.values())
+      .filter(capture => 
+        capture.userId === userId && 
+        capture.reminderAt && 
+        capture.reminderAt <= cutoff &&
+        (!capture.snoozedUntil || capture.snoozedUntil <= cutoff) &&
+        !capture.isCompleted
+      )
+      .sort((a, b) => {
+        const aTime = a.reminderAt?.getTime() || 0;
+        const bTime = b.reminderAt?.getTime() || 0;
+        return aTime - bTime;
+      });
+  }
+
+  async updateReminderNotified(captureId: string): Promise<void> {
+    const capture = this.captures.get(captureId);
+    if (capture) {
+      const updated = { ...capture, lastNotifiedAt: new Date() };
+      this.captures.set(captureId, updated);
+    }
   }
 }
 

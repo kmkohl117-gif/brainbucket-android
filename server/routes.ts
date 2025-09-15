@@ -218,6 +218,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reminders
+  app.get("/api/reminders", async (req, res) => {
+    try {
+      const reminders = await storage.getCapturesWithReminders(mockUserId);
+      res.json(reminders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reminders" });
+    }
+  });
+
+  app.get("/api/reminders/due", async (req, res) => {
+    try {
+      const beforeDate = req.query.before ? new Date(req.query.before as string) : undefined;
+      const dueReminders = await storage.getCapturesDue(mockUserId, beforeDate);
+      res.json(dueReminders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch due reminders" });
+    }
+  });
+
+  app.post("/api/reminders/:captureId/notified", async (req, res) => {
+    try {
+      await storage.updateReminderNotified(req.params.captureId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update reminder notification" });
+    }
+  });
+
   // File upload endpoint
   app.post("/api/upload", upload.single('file'), async (req, res) => {
     try {

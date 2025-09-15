@@ -42,6 +42,10 @@ export const captures = pgTable("captures", {
   isCompleted: boolean("is_completed").default(false),
   order: integer("order").default(0),
   attachments: jsonb("attachments").$type<Attachment[]>().default([]),
+  dueAt: timestamp("due_at"),
+  reminderAt: timestamp("reminder_at"),
+  snoozedUntil: timestamp("snoozed_until"),
+  lastNotifiedAt: timestamp("last_notified_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -88,6 +92,10 @@ export const insertCaptureSchema = createInsertSchema(captures).pick({
   isCompleted: true,
   order: true,
   attachments: true,
+  dueAt: true,
+  reminderAt: true,
+  snoozedUntil: true,
+  lastNotifiedAt: true,
 });
 
 export const insertTaskTemplateSchema = createInsertSchema(taskTemplates).pick({

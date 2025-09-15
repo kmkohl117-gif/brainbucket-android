@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { useStore } from '@/store/useStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { ArrowLeft, Star, Edit, Calendar, Share, Copy, Trash2, ExternalLink, FileText, Link as LinkIcon, FolderOpen, Plus } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { ArrowLeft, Star, Edit, Calendar, Share, Copy, Trash2, ExternalLink, FileText, Link as LinkIcon, FolderOpen, Plus, Bell, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import { formatDistanceToNow, format, isPast } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import type { Capture, Bucket, Folder } from '@shared/schema';
+import { reminderScheduler, REMINDER_PRESETS } from '@/lib/reminders';
 
 export function CaptureView() {
   const { navigation, setCurrentScreen, setSelectedCapture } = useStore();
@@ -23,6 +24,9 @@ export function CaptureView() {
   const [selectedFolderId, setSelectedFolderId] = useState('');
   const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  
+  // Reminder dialog state
+  const [showReminderDialog, setShowReminderDialog] = useState(false);
 
   const { data: capture } = useQuery<Capture>({
     queryKey: ['/api/captures', navigation.selectedCaptureId],
@@ -149,6 +153,69 @@ export function CaptureView() {
     },
   });
 
+  // Reminder helper functions
+  const handleSetReminder = async (reminderDate: Date) => {
+    if (!capture) return;
+    
+    await reminderScheduler.setReminder(capture.id, reminderDate);
+    setShowReminderDialog(false);
+    toast({
+      title: 'Reminder set',
+      description: `Reminder set for ${format(reminderDate, 'MMM d, yyyy \'at\' h:mm a')}`,
+    });
+  };
+
+  const handleClearReminder = async () => {
+    if (!capture) return;
+    
+    await reminderScheduler.clearReminder(capture.id);
+    toast({
+      title: 'Reminder cleared',
+      description: 'Task reminder has been removed',
+    });
+  };
+
+  const handleSnoozeReminder = async (minutes: number) => {
+    if (!capture) return;
+    
+    const snoozeDate = new Date(Date.now() + minutes * 60 * 1000);
+    await reminderScheduler.setReminder(capture.id, snoozeDate);
+    
+    const timeText = minutes < 60 ? `${minutes} minutes` : `${minutes / 60} hour${minutes > 60 ? 's' : ''}`;
+    toast({
+      title: 'Reminder snoozed',
+      description: `Reminder snoozed for ${timeText}`,
+    });
+  };
+
+  // Helper function to get reminder status
+  const getReminderStatus = () => {
+    if (!capture?.reminderAt) return null;
+    
+    const reminderDate = new Date(capture.reminderAt);
+    const now = new Date();
+    
+    // Check if snoozed
+    if (capture.snoozedUntil) {
+      const snoozeDate = new Date(capture.snoozedUntil);
+      if (snoozeDate > now) {
+        return {
+          type: 'snoozed' as const,
+          date: snoozeDate,
+          isOverdue: false,
+        };
+      }
+    }
+    
+    return {
+      type: 'active' as const,
+      date: reminderDate,
+      isOverdue: isPast(reminderDate) && !capture.isCompleted,
+    };
+  };
+
+  const reminderStatus = getReminderStatus();
+
   if (!capture) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -181,6 +248,13 @@ export function CaptureView() {
 
   const handleEdit = () => {
     setCurrentScreen('edit-capture');
+  };
+
+  const handleCompletionToggle = () => {
+    updateCaptureMutation.mutate({
+      id: capture.id,
+      updates: { isCompleted: !capture.isCompleted }
+    });
   };
 
   const handleDuplicate = () => {
@@ -314,6 +388,140 @@ export function CaptureView() {
               <Star className={`w-5 h-5 ${capture.isStarred ? 'text-accent fill-accent' : 'text-muted-foreground'}`} />
             </Button>
           </div>
+
+          {/* Reminder Status & Actions */}
+          {capture.type === 'task' && (
+            <Card>
+              <CardContent className="p-3">
+                {reminderStatus ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        {reminderStatus.isOverdue ? (
+                          <AlertCircle className="w-5 h-5 text-destructive mr-3" />
+                        ) : (
+                          <Bell className={`w-5 h-5 mr-3 ${reminderStatus.type === 'snoozed' ? 'text-muted-foreground' : 'text-primary'}`} />
+                        )}
+                        <div>
+                          <span className="font-medium text-foreground">
+                            {reminderStatus.isOverdue ? 'Overdue Reminder' : 
+                             reminderStatus.type === 'snoozed' ? 'Reminder Snoozed' : 'Reminder Set'}
+                          </span>
+                          <div className="flex items-center text-sm text-muted-foreground mt-1">
+                            <Clock className="w-4 h-4 mr-1" />
+                            <span>
+                              {reminderStatus.isOverdue 
+                                ? `Was due ${formatDistanceToNow(reminderStatus.date, { addSuffix: true })}`
+                                : `${format(reminderStatus.date, 'MMM d, yyyy \'at\' h:mm a')}`
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearReminder}
+                        className="text-muted-foreground hover:text-foreground"
+                        data-testid="button-clear-reminder"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="flex flex-wrap gap-2">
+                      {reminderStatus.isOverdue && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleCompletionToggle()}
+                          className="text-xs"
+                          data-testid="button-mark-done"
+                        >
+                          Mark Done
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSnoozeReminder(15)}
+                        className="text-xs"
+                        data-testid="button-snooze-15"
+                      >
+                        Snooze 15min
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSnoozeReminder(60)}
+                        className="text-xs"
+                        data-testid="button-snooze-1h"
+                      >
+                        Snooze 1hr
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowReminderDialog(true)}
+                        className="text-xs"
+                        data-testid="button-change-reminder"
+                      >
+                        Change Time
+                      </Button>
+                    </div>
+                  </div>
+                ) : !capture.isCompleted && (
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <Bell className="w-5 h-5 text-muted-foreground mr-3" />
+                      <span className="font-medium text-foreground">Set Reminder</span>
+                    </div>
+                    
+                    {/* Quick preset buttons */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSetReminder(REMINDER_PRESETS['in-1h']())}
+                        className="text-xs"
+                        data-testid="button-reminder-1h"
+                      >
+                        In 1 hour
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSetReminder(REMINDER_PRESETS['tonight']())}
+                        className="text-xs"
+                        data-testid="button-reminder-tonight"
+                      >
+                        Tonight
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSetReminder(REMINDER_PRESETS['tomorrow-9am']())}
+                        className="text-xs"
+                        data-testid="button-reminder-tomorrow"
+                      >
+                        Tomorrow 9am
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowReminderDialog(true)}
+                        className="text-xs"
+                        data-testid="button-custom-reminder"
+                      >
+                        Custom...
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Description */}
           {capture.description && (
@@ -544,6 +752,102 @@ export function CaptureView() {
               data-testid="button-create-folder"
             >
               {createFolderMutation.isPending ? 'Creating...' : 'Create Folder'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom Reminder Dialog */}
+      <Dialog open={showReminderDialog} onOpenChange={setShowReminderDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set Custom Reminder</DialogTitle>
+            <DialogDescription>
+              Choose when you'd like to be reminded about this task.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                type="date"
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const newDate = new Date(e.target.value);
+                    newDate.setHours(9, 0); // Default to 9 AM
+                    handleSetReminder(newDate);
+                  }
+                }}
+                className="text-sm"
+                data-testid="input-custom-reminder-date"
+              />
+              <Input
+                type="time"
+                defaultValue="09:00"
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const today = new Date();
+                    const [hours, minutes] = e.target.value.split(':').map(Number);
+                    today.setHours(hours, minutes, 0, 0);
+                    handleSetReminder(today);
+                  }
+                }}
+                className="text-sm"
+                data-testid="input-custom-reminder-time"
+              />
+            </div>
+
+            {/* Quick presets in dialog */}
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Or choose a preset:</div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSetReminder(REMINDER_PRESETS['in-3h']())}
+                  className="text-xs"
+                  data-testid="button-dialog-reminder-3h"
+                >
+                  In 3 hours
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSetReminder(REMINDER_PRESETS['tonight']())}
+                  className="text-xs"
+                  data-testid="button-dialog-reminder-tonight"
+                >
+                  Tonight (6pm)
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSetReminder(REMINDER_PRESETS['tomorrow-9am']())}
+                  className="text-xs"
+                  data-testid="button-dialog-reminder-tomorrow"
+                >
+                  Tomorrow 9am
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSetReminder(REMINDER_PRESETS['next-week']())}
+                  className="text-xs"
+                  data-testid="button-dialog-reminder-next-week"
+                >
+                  Next week
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowReminderDialog(false)}
+              data-testid="button-cancel-reminder"
+            >
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
