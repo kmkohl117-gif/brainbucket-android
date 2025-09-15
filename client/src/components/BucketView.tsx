@@ -49,8 +49,17 @@ export function BucketView() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate all capture-related queries to ensure proper sorting
       queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket', navigation.selectedBucketId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'folder'] });
+      // Invalidate specific queries for current context
+      if (navigation.selectedBucketId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket', navigation.selectedBucketId] });
+      }
+      if (navigation.selectedFolderId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/captures', 'folder', navigation.selectedFolderId] });
+      }
     },
   });
 
@@ -66,12 +75,29 @@ export function BucketView() {
     },
   });
 
-  const inboxCaptures = captures.filter(capture => !capture.folderId && !capture.isCompleted);
-  const completedCount = captures.filter(capture => capture.isCompleted).length;
+  // Apply client-side sorting to ensure starred items always appear first
+  const sortCapturesByStarred = (captures: Capture[]) => {
+    return [...captures].sort((a, b) => {
+      // Starred items first
+      if (a.isStarred && !b.isStarred) return -1;
+      if (!a.isStarred && b.isStarred) return 1;
+      // Then by creation date (newest first) or order
+      if (a.createdAt && b.createdAt) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      return (a.order || 0) - (b.order || 0);
+    });
+  };
+
+  const sortedCaptures = sortCapturesByStarred(captures);
+  const sortedFolderCaptures = sortCapturesByStarred(folderCaptures);
+  
+  const inboxCaptures = sortedCaptures.filter(capture => !capture.folderId && !capture.isCompleted);
+  const completedCount = sortedCaptures.filter(capture => capture.isCompleted).length;
   
   // Determine which view we're showing
   const isViewingFolder = !!navigation.selectedFolderId;
-  const currentCaptures = isViewingFolder ? folderCaptures : inboxCaptures;
+  const currentCaptures = isViewingFolder ? sortedFolderCaptures : inboxCaptures;
   const currentTitle = isViewingFolder ? selectedFolder?.name || 'Folder' : 'Inbox';
   const currentItemCount = isViewingFolder ? folderCaptures.length : inboxCaptures.length;
 

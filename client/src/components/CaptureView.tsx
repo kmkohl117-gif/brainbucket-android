@@ -55,7 +55,12 @@ export function CaptureView() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate all capture-related queries to ensure proper sorting
       queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'folder'] });
+      // Invalidate specific capture query
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', capture?.id] });
     },
   });
 
@@ -64,7 +69,10 @@ export function CaptureView() {
       await apiRequest('DELETE', `/api/captures/${id}`);
     },
     onSuccess: () => {
+      // Invalidate all capture-related queries
       queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'folder'] });
       setCurrentScreen('bucket-view');
     },
   });
@@ -75,7 +83,10 @@ export function CaptureView() {
       return response.json();
     },
     onSuccess: (newCapture) => {
+      // Invalidate all capture-related queries
       queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/captures', 'folder'] });
       setSelectedCapture(newCapture.id);
       setCurrentScreen('edit-capture');
     },
@@ -90,6 +101,7 @@ export function CaptureView() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate all capture-related queries to ensure proper sorting after move
       queryClient.invalidateQueries({ queryKey: ['/api/captures'] });
       queryClient.invalidateQueries({ queryKey: ['/api/captures', 'bucket'] });
       queryClient.invalidateQueries({ queryKey: ['/api/captures', 'folder'] });

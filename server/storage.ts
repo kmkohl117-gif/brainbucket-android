@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Bucket, type InsertBucket, type Folder, type InsertFolder, type Capture, type InsertCapture, type TaskTemplate, type InsertTaskTemplate } from "@shared/schema";
+import { type User, type InsertUser, type Bucket, type InsertBucket, type Folder, type InsertFolder, type Capture, type InsertCapture, type TaskTemplate, type InsertTaskTemplate, type Attachment } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -242,10 +242,12 @@ export class MemStorage implements IStorage {
       id, 
       createdAt: new Date(),
       updatedAt: new Date(),
+      description: insertCapture.description ?? null,
+      folderId: insertCapture.folderId ?? null,
       isStarred: insertCapture.isStarred || false,
       isCompleted: insertCapture.isCompleted || false,
       order: insertCapture.order || 0,
-      attachments: insertCapture.attachments as Array<{id: string; name: string; type: string; url: string; size?: number}> || []
+      attachments: (insertCapture.attachments as Attachment[]) || []
     };
     this.captures.set(id, capture);
     return capture;
@@ -255,7 +257,13 @@ export class MemStorage implements IStorage {
     const capture = this.captures.get(id);
     if (!capture) return undefined;
 
-    const updated = { ...capture, ...updateData, updatedAt: new Date() };
+    const updated: Capture = { 
+      ...capture, 
+      ...updateData, 
+      description: updateData.description !== undefined ? updateData.description ?? null : capture.description,
+      attachments: updateData.attachments ? (updateData.attachments as Attachment[]) : capture.attachments,
+      updatedAt: new Date() 
+    };
     this.captures.set(id, updated);
     return updated;
   }
