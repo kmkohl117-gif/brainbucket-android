@@ -4,22 +4,18 @@ const config: CapacitorConfig = {
   appId: 'com.brainbucket.app',
   appName: 'BrainBucket',
   webDir: 'dist/public',
+  // Production server config for bundled assets
   server: {
-    // For development, we can use the local development server
-    url: 'http://localhost:5000',
-    cleartext: true
-  },
-  android: {
-    allowMixedContent: true
+    androidScheme: 'https'
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 0
     },
     LocalNotifications: {
-      smallIcon: "ic_stat_icon_config_sample",
+      // Use default Android notification icon instead of non-existent resource
       iconColor: "#488AFF",
-      sound: "beep.wav",
+      // Remove invalid sound reference - use system default
     }
   }
 };
