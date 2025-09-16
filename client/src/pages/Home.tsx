@@ -16,6 +16,11 @@ export default function Home() {
   useEffect(() => {
     // Initialize IndexedDB on app load
     indexedDBService.init().catch(console.error);
+    
+    // Load dev utilities only in development mode
+    if (import.meta.env.DEV) {
+      import('@/lib/dev-utils').catch(console.error);
+    }
   }, []);
 
   // Global keyboard shortcut for search (Cmd+K / Ctrl+K)
