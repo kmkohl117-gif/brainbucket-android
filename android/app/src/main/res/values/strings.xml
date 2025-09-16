@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BrainBucket</string>
+    <string name="title_activity_main">BrainBucket</string>
+    <string name="package_name">com.brainbucket.app</string>
+    <string name="custom_url_scheme">com.brainbucket.app</string>
+</resources>
