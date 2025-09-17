@@ -3,17 +3,16 @@ name: Build Android APK
 on:
   push:
     branches: [ "main" ]
-    tags:     [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # --- Web build (Vite/Node) ---
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -25,47 +24,31 @@ jobs:
       - name: Build web
         run: npm run build
 
-      # Capacitor expects webDir (dist) – sync native project
       - name: Sync Capacitor Android
-        run: npx cap sync android --no-interactive
+        env:
+          CI: true
+        run: npx cap sync android
 
-      # --- Android toolchain ---
-      - name: Setup Java (JDK 17)
+      - name: Setup Java (JDK 21)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Accept Android licenses
-        run: yes | sdkmanager --licenses
+        run: yes | sdkmanager --licenses || true
 
       - name: Ensure gradlew is executable
         run: chmod +x android/gradlew
 
       - name: Assemble Debug APK
-        working-directory: android
-        run: ./gradlew assembleDebug --stacktrace
+        run: cd android && ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug.apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-
-  # Optional: when you push a tag like v0.1.0, publish the APK to Releases
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: app-debug.apk
-          path: .
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: app-debug.apk
