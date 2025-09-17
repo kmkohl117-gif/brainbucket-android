@@ -157,7 +157,7 @@ export function BucketView() {
   return (
     <div className="min-h-screen bg-background pb-16">
       {/* Header */}
-      <div className="bg-card border-b border-border px-4 py-3">
+      <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-3 safe-area-pt">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Button
