@@ -39,18 +39,18 @@
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: 12px;
-  --shadow-2xs: 0px 2px 0px 0px hsl(200, 80%, 60% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(200, 80%, 60% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(200, 80%, 60% / 0.00), 0px 1px 2px -1px hsl(200, 80%, 60% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(200, 80%, 60% / 0.00), 0px 1px 2px -1px hsl(200, 80%, 60% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(200, 80%, 60% / 0.00), 0px 2px 4px -1px hsl(200, 80%, 60% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(200, 80%, 60% / 0.00), 0px 4px 6px -1px hsl(200, 80%, 60% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(200, 80%, 60% / 0.00), 0px 8px 10px -1px hsl(200, 80%, 60% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(200, 80%, 60% / 0.00);
+  --shadow-2xs: 0px 2px 0px 0px hsl(200 80% 60% / 0);
+  --shadow-xs: 0px 2px 0px 0px hsl(200 80% 60% / 0);
+  --shadow-sm: 0px 2px 0px 0px hsl(200 80% 60% / 0), 0px 1px 2px -1px hsl(200 80% 60% / 0);
+  --shadow:    0px 2px 0px 0px hsl(200 80% 60% / 0), 0px 1px 2px -1px hsl(200 80% 60% / 0);
+  --shadow-md: 0px 2px 0px 0px hsl(200 80% 60% / 0), 0px 2px 4px -1px hsl(200 80% 60% / 0);
+  --shadow-lg: 0px 2px 0px 0px hsl(200 80% 60% / 0), 0px 4px 6px -1px hsl(200 80% 60% / 0);
+  --shadow-xl: 0px 2px 0px 0px hsl(200 80% 60% / 0), 0px 8px 10px -1px hsl(200 80% 60% / 0);
+  --shadow-2xl:0px 2px 0px 0px hsl(200 80% 60% / 0);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
-  
-  /* Custom bucket colors */
+
+  /* Bucket colors */
   --bucket-todos: hsl(200, 80%, 60%);
   --bucket-creatives: hsl(280, 60%, 70%);
   --bucket-shopping: hsl(30, 80%, 65%);
@@ -94,83 +94,58 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
+  * { @apply border-border; }
+
+  html, body, #root { height: 100%; }
+
+  body { @apply font-sans antialiased bg-background text-foreground; }
+
+  /* GLOBAL safe-area fallback so every screen gets breathing room */
+  @supports (padding-top: env(safe-area-inset-top)) {
+    body {
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+    }
   }
 
-  body {
-    @apply font-sans antialiased bg-background text-foreground;
-  }
-
-  html, body, #root {
-    height: 100%;
-  }
-
-  /* Mobile-first responsive design */
-  .safe-area-pt {
-    padding-top: max(var(--safe-top), 12px);
-  }
-
-  .safe-area-pb {
-    padding-bottom: max(var(--safe-bottom), 12px);
-  }
+  /* Utility classes for explicit padding on headers/footers */
+  .safe-area-pt { padding-top: max(var(--safe-top), 12px); }
+  .safe-area-pb { padding-bottom: max(var(--safe-bottom), 12px); }
 }
 
 @layer components {
-  /* Bucket card styles */
-  .bucket-card {
-    @apply transition-transform hover:scale-[1.02];
-  }
-  
-  /* Capture type active state */
-  .capture-type-active {
-    @apply bg-primary text-primary-foreground;
-  }
-  
-  /* Animation classes */
-  .slide-up {
-    animation: slideUp 0.3s ease-out;
-  }
-  
+  .bucket-card { @apply transition-transform hover:scale-[1.02]; }
+
+  .capture-type-active { @apply bg-primary text-primary-foreground; }
+
+  .slide-up { animation: slideUp 0.3s ease-out; }
   @keyframes slideUp {
-    from { 
-      transform: translateY(100%); 
-      opacity: 0; 
-    }
-    to { 
-      transform: translateY(0); 
-      opacity: 1; 
-    }
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
   }
 }
 
 @layer utilities {
-  /* Bucket color utilities */
   .bucket-todos {
     background: linear-gradient(135deg, var(--bucket-todos), color-mix(in srgb, var(--bucket-todos) 90%, white));
     border: 1px solid color-mix(in srgb, var(--bucket-todos) 80%, transparent);
   }
-  
   .bucket-creatives {
     background: linear-gradient(135deg, var(--bucket-creatives), color-mix(in srgb, var(--bucket-creatives) 90%, white));
     border: 1px solid color-mix(in srgb, var(--bucket-creatives) 80%, transparent);
   }
-  
   .bucket-shopping {
     background: linear-gradient(135deg, var(--bucket-shopping), color-mix(in srgb, var(--bucket-shopping) 90%, white));
     border: 1px solid color-mix(in srgb, var(--bucket-shopping) 80%, transparent);
   }
-  
   .bucket-ideas {
     background: linear-gradient(135deg, var(--bucket-ideas), color-mix(in srgb, var(--bucket-ideas) 90%, white));
     border: 1px solid color-mix(in srgb, var(--bucket-ideas) 80%, transparent);
   }
-  
   .bucket-vault {
     background: linear-gradient(135deg, var(--bucket-vault), color-mix(in srgb, var(--bucket-vault) 90%, white));
     border: 1px solid color-mix(in srgb, var(--bucket-vault) 80%, transparent);
   }
-  
   .bucket-health {
     background: linear-gradient(135deg, var(--bucket-health), color-mix(in srgb, var(--bucket-health) 90%, white));
     border: 1px solid color-mix(in srgb, var(--bucket-health) 80%, transparent);
