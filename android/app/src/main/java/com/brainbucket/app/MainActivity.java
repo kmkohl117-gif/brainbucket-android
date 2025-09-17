@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+
     // Make system bars NOT overlap the WebView
     WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
   }
