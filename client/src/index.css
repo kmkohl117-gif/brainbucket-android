@@ -57,6 +57,10 @@
   --bucket-ideas: hsl(160, 70%, 70%);
   --bucket-vault: hsl(40, 70%, 75%);
   --bucket-health: hsl(340, 60%, 75%);
+
+  /* Safe-area variables with fallback */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .dark {
@@ -97,10 +101,18 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
-  
+
+  html, body, #root {
+    height: 100%;
+  }
+
   /* Mobile-first responsive design */
+  .safe-area-pt {
+    padding-top: max(var(--safe-top), 12px);
+  }
+
   .safe-area-pb {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(var(--safe-bottom), 12px);
   }
 }
 
