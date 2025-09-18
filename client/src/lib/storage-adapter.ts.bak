@@ -55,7 +55,7 @@ class LocalStorageAdapter {
         case 'captures':        return this.handleCapturesRequest(method, urlParts, data)
         case 'buckets':         return this.handleBucketsRequest(method, urlParts, data)
         case 'folders':         return this.handleFoldersRequest(method, urlParts, data)
-        case 'task-templates':  return this.handleTaskTemplatesRequest(method)
+        case 'task-templates':  return this.handleTaskTemplatesRequest(method, urlParts, data)
         case 'reminders':       return this.handleRemindersRequest(method, urlParts, data)
         case 'upload':          return this.handleUploadRequest(method, data)
         default:                return this.createErrorResponse(`Unknown endpoint: ${endpoint}`, 404)
@@ -180,10 +180,11 @@ class LocalStorageAdapter {
       }
       case 'POST': {
         // Create a *custom* template (defaults are seeded once at app start)
+        // Prevent creating another default
         const row = await indexedDBService.createTaskTemplate({
           userId: this.mockUserId,
           isDefault: false,
-          name: '',
+          name: '', // will be overwritten by indexedDB service validation if needed
           category: 'custom',
         } as any)
         return this.createResponse(row)
@@ -264,12 +265,25 @@ export async function adaptedApiRequest(method: string, url: string, data?: unkn
     body: data ? JSON.stringify(data) : undefined,
     credentials: 'include',
   })
+<<<<<<< HEAD
   if (!res.ok) {
     const text = (await res.text()) || res.statusText
     throw new Error(`${res.status}: ${text}`)
   }
   return res
 }
+=======
+  return res
+}
+
+/**
+ * File upload that works in both modes.
+ */
+/**
+
+/**
+cat >> client/src/lib/storage-adapter.ts <<'TS'
+>>>>>>> 0f0e896 (fix: storage-adapter brace; rebuild)
 
 /**
  * Enhanced file upload handler that works with both environments
@@ -277,27 +291,50 @@ export async function adaptedApiRequest(method: string, url: string, data?: unkn
 export async function adaptedFileUpload(file: File): Promise<Attachment> {
   // Local mode: validate + save via filesystem service
   if (shouldUseLocalStorage()) {
-    const validation = await fileSystemService.validateFile(file)
+<<<<<<< HEAD
+=======
+    // Local (IndexedDB + filesystem) path
+>>>>>>> 0f0e896 (fix: storage-adapter brace; rebuild)
+    const validation = await fileSystemService.validateFile(file);
     if (!validation.isValid) {
-      throw new Error(validation.error || 'Invalid file')
+      throw new Error(validation.error || 'Invalid file');
     }
-    return fileSystemService.saveFile(file, file.name, file.type)
-  }
+    return fileSystemService.saveFile(file, file.name, file.type);
+  } else {
+    // HTTP upload path
+    const form = new FormData();
+    form.append('file', file);
 
-  // HTTP upload path
-  const form = new FormData()
-  form.append('file', file)
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: form,
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const text = (await res.text()) || res.statusText;
+      throw new Error(text);
+    }
+
+    return res.json();
+  }
+<<<<<<< HEAD
+  
+const form = new FormData();
+  form.append('file', file);
 
   const res = await fetch('/api/upload', {
     method: 'POST',
     body: form,
     credentials: 'include',
-  })
+  });
 
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText
-    throw new Error(text)
+    const text = (await res.text()) || res.statusText;
+    throw new Error(text);
   }
 
-  return res.json() as Promise<Attachment>
+  return res.json() as Promise<Attachment>;
+=======
+>>>>>>> 0f0e896 (fix: storage-adapter brace; rebuild)
 }
