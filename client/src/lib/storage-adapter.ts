@@ -1,6 +1,6 @@
-import { indexedDBService } from './indexeddb';
-import { fileSystemService } from './filesystem';
-import { getStorageMode } from './capacitor';
+import { indexedDBService } from './indexeddb'
+import { fileSystemService } from './filesystem'
+import { getStorageMode } from './capacitor'
 import type {
   Capture,
   Bucket,
@@ -11,294 +11,252 @@ import type {
   InsertFolder,
   InsertTaskTemplate,
   Attachment,
-} from '@shared/schema';
+} from '@shared/schema'
 
 /**
  * Storage Adapter that provides HTTP API-compatible interface over IndexedDB
- * while mimicking the Express server’s JSON responses. It lets the app run
- * either fully local (“local” mode) or against the HTTP API (“api” mode).
+ * This adapter mimics the Express server routes while using local IndexedDB.
  */
 
 export interface StorageAdapterResponse {
-  ok: boolean;
-  status: number;
-  statusText: string;
-  headers: Headers;
-  json(): Promise<any>;
-  text(): Promise<string>;
+  ok: boolean
+  status: number
+  statusText: string
+  headers: Headers
+  json(): Promise<any>
+  text(): Promise<string>
 }
 
 class LocalStorageAdapter {
-  private mockUserId = 'user-123'; // same as server
+  private mockUserId = 'user-123' // match the server's mock user ID
 
-  /** Create a fetch-like response */
-  private createResponse(
-    data: any,
-    status: number = 200,
-    statusText: string = 'OK',
-  ): StorageAdapterResponse {
-    const headers = new Headers({ 'Content-Type': 'application/json' });
+  private createResponse(data: any, status: number = 200, statusText = 'OK'): StorageAdapterResponse {
+    const headers = new Headers({ 'Content-Type': 'application/json' })
     return {
       ok: status >= 200 && status < 300,
       status,
       statusText,
       headers,
-      async json() {
-        return data;
-      },
-      async text() {
-        return JSON.stringify(data);
-      },
-    };
+      async json() { return data },
+      async text() { return JSON.stringify(data) },
+    }
   }
 
-  private createErrorResponse(message: string, status: number = 500) {
-    return this.createResponse({ error: message }, status, 'Error');
+  private createErrorResponse(message: string, status: number = 500): StorageAdapterResponse {
+    return this.createResponse({ error: message }, status, 'Error')
   }
 
-  /** Route HTTP-like requests to IndexedDB operations */
   async handleRequest(method: string, url: string, data?: any): Promise<StorageAdapterResponse> {
     try {
-      const urlParts = url.replace('/api/', '').split('/');
-      const endpoint = urlParts[0];
+      const urlParts = url.replace('/api/', '').split('/')
+      const endpoint = urlParts[0]
 
       switch (endpoint) {
-        case 'captures':
-          return this.handleCapturesRequest(method, urlParts, data);
-        case 'buckets':
-          return this.handleBucketsRequest(method, urlParts, data);
-        case 'folders':
-          return this.handleFoldersRequest(method, urlParts, data);
-        case 'task-templates':
-          return this.handleTaskTemplatesRequest(method, urlParts, data);
-        case 'reminders':
-          return this.handleRemindersRequest(method, urlParts, data);
-        case 'upload':
-          return this.handleUploadRequest(method, data);
-        default:
-          return this.createErrorResponse(`Unknown endpoint: ${endpoint}`, 404);
+        case 'captures':        return this.handleCapturesRequest(method, urlParts, data)
+        case 'buckets':         return this.handleBucketsRequest(method, urlParts, data)
+        case 'folders':         return this.handleFoldersRequest(method, urlParts, data)
+        case 'task-templates':  return this.handleTaskTemplatesRequest(method, urlParts, data)
+        case 'reminders':       return this.handleRemindersRequest(method, urlParts, data)
+        case 'upload':          return this.handleUploadRequest(method, data)
+        default:                return this.createErrorResponse(`Unknown endpoint: ${endpoint}`, 404)
       }
     } catch (err: any) {
-      console.error('Storage adapter error:', err);
-      return this.createErrorResponse(err?.message || 'Internal server error', 500);
+      console.error('Storage adapter error:', err)
+      return this.createErrorResponse(err?.message || 'Internal server error', 500)
     }
   }
 
-  // ---------- Captures ----------
-  private async handleCapturesRequest(
-    method: string,
-    urlParts: string[],
-    data?: any,
-  ): Promise<StorageAdapterResponse> {
-    const [, param1, param2] = urlParts;
-
-    if (method === 'GET') {
-      if (!param1) {
-        const captures = await indexedDBService.getCapturesByUser(this.mockUserId);
-        return this.createResponse(captures);
-      }
-      if (param1 === 'bucket' && param2) {
-        const captures = await indexedDBService.getCapturesByBucket(param2);
-        return this.createResponse(captures);
-      }
-      if (param1 === 'folder' && param2) {
-        const captures = await indexedDBService.getCapturesByFolder(param2);
-        return this.createResponse(captures);
-      }
-      const capture = await indexedDBService.getCapture(param1);
-      if (!capture) return this.createErrorResponse('Capture not found', 404);
-      return this.createResponse(capture);
-    }
-
-    if (method === 'POST') {
-      if (!data) return this.createErrorResponse('Invalid capture data', 400);
-      const captureData = { ...data, userId: this.mockUserId };
-      const newCapture = await indexedDBService.createCapture(captureData as InsertCapture);
-      return this.createResponse(newCapture);
-    }
-
-    if (method === 'PATCH') {
-      if (!param1) return this.createErrorResponse('Capture ID required', 400);
-      const updated = await indexedDBService.updateCapture(param1, data);
-      if (!updated) return this.createErrorResponse('Capture not found', 404);
-      return this.createResponse(updated);
-    }
-
-    if (method === 'DELETE') {
-      if (!param1) return this.createErrorResponse('Capture ID required', 400);
-      const deleted = await indexedDBService.deleteCapture(param1);
-      if (!deleted) return this.createErrorResponse('Capture not found', 404);
-      return this.createResponse({ success: true });
-    }
-
-    return this.createErrorResponse(`Method ${method} not allowed`, 405);
-  }
-
-  // ---------- Buckets ----------
-  private async handleBucketsRequest(
-    method: string,
-    urlParts: string[],
-    data?: any,
-  ): Promise<StorageAdapterResponse> {
-    const [, param1] = urlParts;
-
-    if (method === 'GET') {
-      if (!param1) {
-        const buckets = await indexedDBService.getBucketsByUser(this.mockUserId);
-        return this.createResponse(buckets);
-      }
-      const bucket = await indexedDBService.getBucket(param1);
-      if (!bucket) return this.createErrorResponse('Bucket not found', 404);
-      return this.createResponse(bucket);
-    }
-
-    if (method === 'POST') {
-      if (param1 === 'reorder') {
-        if (!data?.orderedIds) return this.createErrorResponse('Invalid reorder data', 400);
-        try {
-          const buckets = await indexedDBService.reorderBuckets(this.mockUserId, data.orderedIds);
-          return this.createResponse(buckets);
-        } catch (err: any) {
-          if (String(err?.message || '').includes('Invalid bucket IDs')) {
-            return this.createErrorResponse(err.message, 400);
-          }
-          throw err;
+  // ------- Captures -------
+  private async handleCapturesRequest(method: string, parts: string[], data?: any): Promise<StorageAdapterResponse> {
+    const [, p1, p2] = parts
+    switch (method) {
+      case 'GET': {
+        if (!p1) {
+          const rows = await indexedDBService.getCapturesByUser(this.mockUserId)
+          return this.createResponse(rows)
         }
+        if (p1 === 'bucket' && p2) {
+          const rows = await indexedDBService.getCapturesByBucket(p2)
+          return this.createResponse(rows)
+        }
+        if (p1 === 'folder' && p2) {
+          const rows = await indexedDBService.getCapturesByFolder(p2)
+          return this.createResponse(rows)
+        }
+        const row = await indexedDBService.getCapture(p1)
+        return row
+          ? this.createResponse(row)
+          : this.createErrorResponse('Capture not found', 404)
       }
-
-      if (!data) return this.createErrorResponse('Invalid bucket data', 400);
-      const bucketData = { ...data, userId: this.mockUserId } as InsertBucket;
-      const newBucket = await indexedDBService.createBucket(bucketData);
-      return this.createResponse(newBucket);
+      case 'POST': {
+        if (!data) return this.createErrorResponse('Invalid capture data', 400)
+        const payload = { ...data, userId: this.mockUserId }
+        const row = await indexedDBService.createCapture(payload)
+        return this.createResponse(row)
+      }
+      case 'PATCH': {
+        if (!p1) return this.createErrorResponse('Capture ID required', 400)
+        const row = await indexedDBService.updateCapture(p1, data)
+        return row
+          ? this.createResponse(row)
+          : this.createErrorResponse('Capture not found', 404)
+      }
+      case 'DELETE': {
+        if (!p1) return this.createErrorResponse('Capture ID required', 400)
+        const ok = await indexedDBService.deleteCapture(p1)
+        return ok ? this.createResponse({ success: true }) : this.createErrorResponse('Capture not found', 404)
+      }
+      default:
+        return this.createErrorResponse(`Method ${method} not allowed`, 405)
     }
-
-    return this.createErrorResponse(`Method ${method} not allowed`, 405);
   }
 
-  // ---------- Folders ----------
-  private async handleFoldersRequest(
-    method: string,
-    urlParts: string[],
-    data?: any,
-  ): Promise<StorageAdapterResponse> {
-    const [, param1, param2] = urlParts;
-
-    if (method === 'GET') {
-      if (param1 === 'bucket' && param2) {
-        const folders = await indexedDBService.getFoldersByBucket(param2);
-        return this.createResponse(folders);
+  // ------- Buckets -------
+  private async handleBucketsRequest(method: string, parts: string[], data?: any): Promise<StorageAdapterResponse> {
+    const [, p1] = parts
+    switch (method) {
+      case 'GET': {
+        if (!p1) {
+          const rows = await indexedDBService.getBucketsByUser(this.mockUserId)
+          return this.createResponse(rows)
+        }
+        const row = await indexedDBService.getBucket(p1)
+        return row ? this.createResponse(row) : this.createErrorResponse('Bucket not found', 404)
       }
-      if (param1) {
-        const folder = await indexedDBService.getFolder(param1);
-        if (!folder) return this.createErrorResponse('Folder not found', 404);
-        return this.createResponse(folder);
+      case 'POST': {
+        if (p1 === 'reorder') {
+          if (!data?.orderedIds) return this.createErrorResponse('Invalid reorder data', 400)
+          try {
+            const rows = await indexedDBService.reorderBuckets(this.mockUserId, data.orderedIds)
+            return this.createResponse(rows)
+          } catch (e: any) {
+            if (String(e?.message || '').includes('Invalid bucket IDs')) {
+              return this.createErrorResponse(e.message, 400)
+            }
+            throw e
+          }
+        }
+        if (!data) return this.createErrorResponse('Invalid bucket data', 400)
+        const payload = { ...data, userId: this.mockUserId }
+        const row = await indexedDBService.createBucket(payload)
+        return this.createResponse(row)
       }
-      return this.createErrorResponse('Invalid folder request', 400);
+      default:
+        return this.createErrorResponse(`Method ${method} not allowed`, 405)
     }
-
-    if (method === 'POST') {
-      if (!data) return this.createErrorResponse('Invalid folder data', 400);
-      const newFolder = await indexedDBService.createFolder(data as InsertFolder);
-      return this.createResponse(newFolder);
-    }
-
-    return this.createErrorResponse(`Method ${method} not allowed`, 405);
   }
 
-  // ---------- Task templates ----------
-  private async handleTaskTemplatesRequest(
-    method: string,
-    _urlParts: string[],
-    data?: any,
-  ): Promise<StorageAdapterResponse> {
-    if (method === 'GET') {
-      const templates = await indexedDBService.getTaskTemplates(this.mockUserId);
-      return this.createResponse(templates);
-    }
-
-    if (method === 'POST') {
-      if (!data) return this.createErrorResponse('Invalid template data', 400);
-      const templateData = { ...data, userId: this.mockUserId } as InsertTaskTemplate;
-      const newTemplate = await indexedDBService.createTaskTemplate(templateData);
-      return this.createResponse(newTemplate);
-    }
-
-    return this.createErrorResponse(`Method ${method} not allowed`, 405);
-  }
-
-  // ---------- Reminders ----------
-  private async handleRemindersRequest(
-    method: string,
-    urlParts: string[],
-    data?: any,
-  ): Promise<StorageAdapterResponse> {
-    const [, param1, param2] = urlParts;
-
-    if (method === 'GET') {
-      if (param1 === 'due') {
-        const beforeDate = data?.before ? new Date(data.before) : undefined;
-        const due = await indexedDBService.getCapturesDue(this.mockUserId, beforeDate);
-        return this.createResponse(due);
+  // ------- Folders -------
+  private async handleFoldersRequest(method: string, parts: string[], data?: any): Promise<StorageAdapterResponse> {
+    const [, p1, p2] = parts
+    switch (method) {
+      case 'GET': {
+        if (p1 === 'bucket' && p2) {
+          const rows = await indexedDBService.getFoldersByBucket(p2)
+          return this.createResponse(rows)
+        }
+        if (p1) {
+          const row = await indexedDBService.getFolder(p1)
+          return row ? this.createResponse(row) : this.createErrorResponse('Folder not found', 404)
+        }
+        return this.createErrorResponse('Invalid folder request', 400)
       }
-      const reminders = await indexedDBService.getCapturesWithReminders(this.mockUserId);
-      return this.createResponse(reminders);
+      case 'POST': {
+        if (!data) return this.createErrorResponse('Invalid folder data', 400)
+        const row = await indexedDBService.createFolder(data)
+        return this.createResponse(row)
+      }
+      default:
+        return this.createErrorResponse(`Method ${method} not allowed`, 405)
     }
-
-    if (method === 'POST' && param2 === 'notified') {
-      if (!param1) return this.createErrorResponse('Capture ID required', 400);
-      await indexedDBService.updateReminderNotified(param1);
-      return this.createResponse({ success: true });
-    }
-
-    return this.createErrorResponse(`Method ${method} not allowed`, 405);
   }
 
-  // ---------- Upload ----------
+  // ------- Task Templates -------
+  private async handleTaskTemplatesRequest(method: string): Promise<StorageAdapterResponse> {
+    switch (method) {
+      case 'GET': {
+        const rows = await indexedDBService.getTaskTemplates(this.mockUserId)
+        return this.createResponse(rows)
+      }
+      case 'POST': {
+        // Create a *custom* template (defaults are seeded once at app start)
+        // Prevent creating another default
+        const row = await indexedDBService.createTaskTemplate({
+          userId: this.mockUserId,
+          isDefault: false,
+          name: '', // will be overwritten by indexedDB service validation if needed
+          category: 'custom',
+        } as any)
+        return this.createResponse(row)
+      }
+      default:
+        return this.createErrorResponse(`Method ${method} not allowed`, 405)
+    }
+  }
+
+  // ------- Reminders -------
+  private async handleRemindersRequest(method: string, parts: string[], data?: any): Promise<StorageAdapterResponse> {
+    const [, p1, p2] = parts
+    switch (method) {
+      case 'GET': {
+        if (p1 === 'due') {
+          const before = data?.before ? new Date(data.before) : undefined
+          const rows = await indexedDBService.getCapturesDue(this.mockUserId, before)
+          return this.createResponse(rows)
+        }
+        const rows = await indexedDBService.getCapturesWithReminders(this.mockUserId)
+        return this.createResponse(rows)
+      }
+      case 'POST': {
+        if (p2 === 'notified') {
+          if (!p1) return this.createErrorResponse('Capture ID required', 400)
+          await indexedDBService.updateReminderNotified(p1)
+          return this.createResponse({ success: true })
+        }
+        return this.createErrorResponse('Invalid reminder endpoint', 400)
+      }
+      default:
+        return this.createErrorResponse(`Method ${method} not allowed`, 405)
+    }
+  }
+
+  // ------- Upload -------
   private async handleUploadRequest(method: string, data?: any): Promise<StorageAdapterResponse> {
-    if (method !== 'POST') return this.createErrorResponse(`Method ${method} not allowed`, 405);
+    if (method !== 'POST') return this.createErrorResponse(`Method ${method} not allowed`, 405)
     try {
-      if (!data?.file) return this.createErrorResponse('No file uploaded', 400);
-
-      const validation = await fileSystemService.validateFile(data.file);
-      if (!validation.isValid) {
-        return this.createErrorResponse(validation.error || 'Invalid file', 400);
-      }
-
+      if (!data?.file) return this.createErrorResponse('No file uploaded', 400)
+      const validation = await fileSystemService.validateFile(data.file)
+      if (!validation.isValid) return this.createErrorResponse(validation.error || 'Invalid file', 400)
       const attachment = await fileSystemService.saveFile(
         data.file,
         validation.fileInfo?.name || 'unknown',
-        validation.fileInfo?.type || 'application/octet-stream',
-      );
-
-      return this.createResponse(attachment);
-    } catch (err) {
-      console.error('File upload error:', err);
-      return this.createErrorResponse('Failed to upload file', 500);
+        validation.fileInfo?.type || 'application/octet-stream'
+      )
+      return this.createResponse(attachment)
+    } catch (e) {
+      console.error('File upload error:', e)
+      return this.createErrorResponse('Failed to upload file', 500)
     }
   }
 }
 
-/** Main storage adapter instance (used when in local mode) */
-export const storageAdapter = new LocalStorageAdapter();
+// Main adapter instance
+export const storageAdapter = new LocalStorageAdapter()
 
-/** Should we use local storage or hit the HTTP API? */
+// Should we use local storage or HTTP API?
 export function shouldUseLocalStorage(): boolean {
-  return getStorageMode() === 'local';
+  return getStorageMode() === 'local'
 }
 
-/** Unified request wrapper used by the app */
-export async function adaptedApiRequest(
-  method: string,
-  url: string,
-  data?: unknown,
-): Promise<Response> {
+// Route to local adapter or HTTP fetch
+export async function adaptedApiRequest(method: string, url: string, data?: unknown): Promise<Response> {
   if (shouldUseLocalStorage()) {
-    const r = await storageAdapter.handleRequest(method, url, data);
-    return new Response(JSON.stringify(await r.json()), {
-      status: r.status,
-      statusText: r.statusText,
-      headers: r.headers,
-    });
+    const resp = await storageAdapter.handleRequest(method, url, data)
+    return new Response(JSON.stringify(await resp.json()), {
+      status: resp.status,
+      statusText: resp.statusText,
+      headers: resp.headers,
+    })
   }
 
   const res = await fetch(url, {
@@ -306,38 +264,39 @@ export async function adaptedApiRequest(
     headers: data ? { 'Content-Type': 'application/json' } : {},
     body: data ? JSON.stringify(data) : undefined,
     credentials: 'include',
-  });
-
+  })
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const text = (await res.text()) || res.statusText
+    throw new Error(`${res.status}: ${text}`)
   }
-  return res;
+  return res
 }
 
-/** File upload that works in both modes */
+/**
+ * Enhanced file upload handler that works with both environments
+ */
 export async function adaptedFileUpload(file: File): Promise<Attachment> {
   if (shouldUseLocalStorage()) {
-    const validation = await fileSystemService.validateFile(file);
-    if (!validation.isValid) {
-      throw new Error(validation.error || 'Invalid file');
-    }
-    return fileSystemService.saveFile(file, file.name, file.type);
+    const validation = await fileSystemService.validateFile(file)
+    if (!validation.isValid) throw new Error(validation.error || 'Invalid file')
+    return fileSystemService.saveFile(file, file.name, file.type)
   }
 
-  const formData = new FormData();
-  formData.append('file', file);
+  const form = new FormData()
+  form.append('file', file)
 
-  const response = await fetch('/api/upload', {
+  const res = await fetch('/api/upload', {
     method: 'POST',
-    body: formData,
+    body: form,
     credentials: 'include',
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Upload failed: ${error}`);
+  })
+  if (!res.ok) {
+    const text = (await res.text()) || res.statusText
+    throw new Error(text)
   }
+  return res.json()
+}
+
 
   return response.json();
 }
