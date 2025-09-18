@@ -15,6 +15,8 @@ const app = express();
  * NOTE: If you use fetch with credentials: 'include', do not use '*' for origin.
  */
 const allowedOrigins = [
+  console.log("BOOT: CORS_ORIGIN =", process.env.CORS_ORIGIN ?? "(unset)");
+  console.log("BOOT: allowedOrigins =", allowedOrigins);
   "capacitor://localhost",
   "http://localhost",
   "http://127.0.0.1",
@@ -28,10 +30,15 @@ log(`BOOT: process.env.CORS_ORIGIN = ${process.env.CORS_ORIGIN ?? "(unset)"}`);
 const corsOptions: cors.CorsOptions = {
   origin(origin, callback) {
     // No origin (mobile WebView/same-origin requests) → allow
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log("CORS: request with no Origin header → allowed");
+      return callback(null, true);
+    }
 
     // Exact or prefix match against our allowlist
     const ok = allowedOrigins.some((o) => origin === o || origin.startsWith(o));
+    console.log(`CORS check: incoming Origin="${origin}" -> ${ok ? "ALLOWED" : "BLOCKED"}`);
+    
     return ok ? callback(null, true) : callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
@@ -109,6 +116,11 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
       log(`CORS allowed origins: ${allowedOrigins.join(", ") || "(none)"}`);
+
+       // Explicit plain logs so we know they print
+    console.log("DEBUG: server started on port", port);
+    console.log("DEBUG: allowedOrigins at boot =", allowedOrigins);
+    console.log("DEBUG: CORS_ORIGIN =", process.env.CORS_ORIGIN);
     }
   );
 })();
