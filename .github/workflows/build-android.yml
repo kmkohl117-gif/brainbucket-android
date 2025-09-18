@@ -1,21 +1,15 @@
 name: Build Android APK
 
 on:
+  workflow_dispatch: {}         # <— allow manual “Run workflow”
   push:
     branches: [ "main" ]
-    # Optional: uncomment to trigger only when these paths change
-    # paths:
-    #   - "client/**"
-    #   - "android/**"
-    #   - "package.json"
-    #   - "package-lock.json"
-    #   - ".github/workflows/build-android.yml"
-  workflow_dispatch: {}   # <— enables the “Run workflow” button
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,3 +53,4 @@ jobs:
         with:
           name: app-debug.apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
