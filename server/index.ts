@@ -1,3 +1,7 @@
+console.log("EARLY: CORS_ORIGIN =", process.env.CORS_ORIGIN ?? "(unset)");
+console.log("EARLY: NODE_ENV    =", process.env.NODE_ENV ?? "(unset)");
+
+
 import express, { type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes";
