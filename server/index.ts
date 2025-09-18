@@ -18,9 +18,12 @@ const allowedOrigins = [
   "capacitor://localhost",
   "http://localhost",
   "http://127.0.0.1",
-  process.env.CORS_ORIGIN,      // e.g. https://<your-replit-subdomain>.repl.co
+  process.env.CORS_ORIGIN,      // e.g. https://brain-bucket-xyz.replit.app
   process.env.VITE_APP_ORIGIN,  // optional extra slot if you prefer
 ].filter(Boolean) as string[];
+
+// Print what the process actually sees for CORS_ORIGIN at boot:
+log(`BOOT: process.env.CORS_ORIGIN = ${process.env.CORS_ORIGIN ?? "(unset)"}`);
 
 const corsOptions: cors.CorsOptions = {
   origin(origin, callback) {
@@ -109,3 +112,4 @@ app.use((req, res, next) => {
     }
   );
 })();
+
