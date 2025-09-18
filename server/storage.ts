@@ -1,4 +1,16 @@
-import { type User, type InsertUser, type Bucket, type InsertBucket, type Folder, type InsertFolder, type Capture, type InsertCapture, type TaskTemplate, type InsertTaskTemplate, type Attachment } from "@shared/schema";
+import {
+  type User,
+  type InsertUser,
+  type Bucket,
+  type InsertBucket,
+  type Folder,
+  type InsertFolder,
+  type Capture,
+  type InsertCapture,
+  type TaskTemplate,
+  type InsertTaskTemplate,
+  type Attachment,
+} from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -6,7 +18,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Buckets
   getBucketsByUser(userId: string): Promise<Bucket[]>;
   getBucket(id: string): Promise<Bucket | undefined>;
@@ -14,14 +26,14 @@ export interface IStorage {
   updateBucket(id: string, bucket: Partial<InsertBucket>): Promise<Bucket | undefined>;
   deleteBucket(id: string): Promise<boolean>;
   reorderBuckets(userId: string, orderedIds: string[]): Promise<Bucket[]>;
-  
+
   // Folders
   getFoldersByBucket(bucketId: string): Promise<Folder[]>;
   getFolder(id: string): Promise<Folder | undefined>;
   createFolder(folder: InsertFolder): Promise<Folder>;
   updateFolder(id: string, folder: Partial<InsertFolder>): Promise<Folder | undefined>;
   deleteFolder(id: string): Promise<boolean>;
-  
+
   // Captures
   getCapturesByUser(userId: string): Promise<Capture[]>;
   getCapturesByBucket(bucketId: string): Promise<Capture[]>;
@@ -30,12 +42,12 @@ export interface IStorage {
   createCapture(capture: InsertCapture): Promise<Capture>;
   updateCapture(id: string, capture: Partial<InsertCapture>): Promise<Capture | undefined>;
   deleteCapture(id: string): Promise<boolean>;
-  
+
   // Task Templates
   getTaskTemplates(userId?: string): Promise<TaskTemplate[]>;
   createTaskTemplate(template: InsertTaskTemplate): Promise<TaskTemplate>;
   deleteTaskTemplate(id: string): Promise<boolean>;
-  
+
   // Reminders
   getCapturesWithReminders(userId: string): Promise<Capture[]>;
   getCapturesDue(userId: string, beforeDate?: Date): Promise<Capture[]>;
@@ -49,93 +61,103 @@ export class MemStorage implements IStorage {
   private captures: Map<string, Capture> = new Map();
   private taskTemplates: Map<string, TaskTemplate> = new Map();
 
+  private initialized = false;
+
   constructor() {
     this.initializeDefaultData();
   }
 
+  /** Seed defaults once; idempotent across hot reloads. */
   private async initializeDefaultData() {
-    // Create default cleaning task templates
+    if (this.initialized) return;
+
+    // --- default cleaning task templates (idempotent) ---
     const cleaningTasks = [
-      'Dishes', 'Trash', 'Water Plants', 'Vacuum', 'Clean Bathroom', 
-      'Hang Laundry', 'Change Sheets', 'Clean Shower', 'Wash Floors', 
-      'Clean Car', 'Tidy Bedroom', 'Replace Towels'
+      "Dishes",
+      "Trash",
+      "Water Plants",
+      "Vacuum",
+      "Clean Bathroom",
+      "Hang Laundry",
+      "Change Sheets",
+      "Clean Shower",
+      "Wash Floors",
+      "Clean Car",
+      "Tidy Bedroom",
+      "Replace Towels",
     ];
 
-    cleaningTasks.forEach(task => {
+    for (const name of cleaningTasks) {
+      const exists = Array.from(this.taskTemplates.values()).some(
+        (t) => t.isDefault && t.category === "cleaning" && t.name === name
+      );
+      if (exists) continue;
+
       const template: TaskTemplate = {
         id: randomUUID(),
-        name: task,
-        category: 'cleaning',
+        name,
+        category: "cleaning",
         userId: null,
         isDefault: true,
         createdAt: new Date(),
       };
       this.taskTemplates.set(template.id, template);
-    });
+    }
 
-    // Create mock user and their default buckets
+    // Mock user (idempotent)
     const mockUserId = "user-123";
-    const mockUser: User = {
-      id: mockUserId,
-      username: "demo_user",
-      password: "demo_password",
-      biometricEnabled: false,
-      createdAt: new Date(),
-    };
-    this.users.set(mockUserId, mockUser);
+    if (!this.users.has(mockUserId)) {
+      const mockUser: User = {
+        id: mockUserId,
+        username: "demo_user",
+        password: "demo_password",
+        biometricEnabled: false,
+        createdAt: new Date(),
+      };
+      this.users.set(mockUserId, mockUser);
+    }
 
-    // Create default buckets for the mock user
+    // Default buckets (idempotent)
     await this.createDefaultBuckets(mockUserId);
+
+    this.initialized = true;
   }
 
-  // Users
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { 
-      ...insertUser, 
-      id, 
-      createdAt: new Date(),
-      biometricEnabled: insertUser.biometricEnabled || false 
-    };
-    this.users.set(id, user);
-
-    // Create default buckets for new user
-    await this.createDefaultBuckets(id);
-
-    return user;
-  }
-
+  /** Create default buckets only if each one doesn't already exist. */
   private async createDefaultBuckets(userId: string) {
-    const defaultBuckets = [
-      { name: 'To-Dos', color: 'hsl(200, 80%, 60%)', icon: 'fas fa-check-square', order: 0 },
-      { name: 'Creatives', color: 'hsl(280, 60%, 70%)', icon: 'fas fa-palette', order: 1 },
-      { name: 'Shopping Lists', color: 'hsl(30, 80%, 65%)', icon: 'fas fa-shopping-cart', order: 2 },
-      { name: 'Ideas & Dreams', color: 'hsl(160, 70%, 70%)', icon: 'fas fa-lightbulb', order: 3 },
-      { name: 'Vault', color: 'hsl(40, 70%, 75%)', icon: 'fas fa-lock', order: 4 },
-      { name: 'Health', color: 'hsl(340, 60%, 75%)', icon: 'fas fa-heart', order: 5 }
+    const defaults: Array<
+      Pick<InsertBucket, "name" | "icon" | "order"> & { color: string }
+    > = [
+      { name: "To-Dos",          color: "hsl(200, 80%, 60%)", icon: "fas fa-check-square", order: 0 },
+      { name: "Creatives",       color: "hsl(280, 60%, 70%)", icon: "fas fa-palette",       order: 1 },
+      { name: "Shopping Lists",  color: "hsl(30, 80%, 65%)",  icon: "fas fa-shopping-cart", order: 2 },
+      { name: "Ideas & Dreams",  color: "hsl(160, 70%, 70%)", icon: "fas fa-lightbulb",     order: 3 },
+      { name: "Vault",           color: "hsl(40, 70%, 75%)",  icon: "fas fa-lock",          order: 4 },
+      { name: "Health",          color: "hsl(340, 60%, 75%)", icon: "fas fa-heart",         order: 5 },
     ];
 
-    for (const bucket of defaultBuckets) {
+    for (const b of defaults) {
+      const exists = Array.from(this.buckets.values()).some(
+        (x) => x.userId === userId && x.isDefault && x.name === b.name
+      );
+      if (exists) continue;
+
       await this.createBucket({
-        ...bucket,
+        name: b.name,
+        color: b.color,
+        icon: b.icon,
+        order: b.order,
         userId,
-        isDefault: true
+        isDefault: true,
       });
     }
   }
 
-  // Buckets
+  // ----------------- Buckets -----------------
+
   async getBucketsByUser(userId: string): Promise<Bucket[]> {
     return Array.from(this.buckets.values())
-      .filter(bucket => bucket.userId === userId)
+      .filter((bucket) => bucket.userId === userId)
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
@@ -145,12 +167,12 @@ export class MemStorage implements IStorage {
 
   async createBucket(insertBucket: InsertBucket): Promise<Bucket> {
     const id = randomUUID();
-    const bucket: Bucket = { 
-      ...insertBucket, 
-      id, 
+    const bucket: Bucket = {
+      ...insertBucket,
+      id,
       createdAt: new Date(),
-      isDefault: insertBucket.isDefault || false,
-      order: insertBucket.order || 0
+      isDefault: insertBucket.isDefault ?? false,
+      order: insertBucket.order ?? 0,
     };
     this.buckets.set(id, bucket);
     return bucket;
@@ -170,33 +192,29 @@ export class MemStorage implements IStorage {
   }
 
   async reorderBuckets(userId: string, orderedIds: string[]): Promise<Bucket[]> {
-    // Get all user's buckets to validate the ordered IDs
     const userBuckets = await this.getBucketsByUser(userId);
-    const validBucketIds = new Set(userBuckets.map(b => b.id));
+    const validBucketIds = new Set(userBuckets.map((b) => b.id));
 
-    // Validate that all provided IDs belong to this user
-    const invalidIds = orderedIds.filter(id => !validBucketIds.has(id));
+    const invalidIds = orderedIds.filter((id) => !validBucketIds.has(id));
     if (invalidIds.length > 0) {
-      throw new Error(`Invalid bucket IDs: ${invalidIds.join(', ')}`);
+      throw new Error(`Invalid bucket IDs: ${invalidIds.join(", ")}`);
     }
 
-    // Update the order field for each bucket based on its position in orderedIds
     orderedIds.forEach((bucketId, index) => {
       const bucket = this.buckets.get(bucketId);
       if (bucket && bucket.userId === userId) {
-        const updated = { ...bucket, order: index };
-        this.buckets.set(bucketId, updated);
+        this.buckets.set(bucketId, { ...bucket, order: index });
       }
     });
 
-    // Return the updated buckets in their new order
     return this.getBucketsByUser(userId);
   }
 
-  // Folders
+  // ----------------- Folders -----------------
+
   async getFoldersByBucket(bucketId: string): Promise<Folder[]> {
     return Array.from(this.folders.values())
-      .filter(folder => folder.bucketId === bucketId)
+      .filter((folder) => folder.bucketId === bucketId)
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
 
@@ -206,11 +224,11 @@ export class MemStorage implements IStorage {
 
   async createFolder(insertFolder: InsertFolder): Promise<Folder> {
     const id = randomUUID();
-    const folder: Folder = { 
-      ...insertFolder, 
-      id, 
+    const folder: Folder = {
+      ...insertFolder,
+      id,
       createdAt: new Date(),
-      order: insertFolder.order || 0
+      order: insertFolder.order ?? 0,
     };
     this.folders.set(id, folder);
     return folder;
@@ -229,12 +247,12 @@ export class MemStorage implements IStorage {
     return this.folders.delete(id);
   }
 
-  // Captures
+  // ----------------- Captures -----------------
+
   async getCapturesByUser(userId: string): Promise<Capture[]> {
     return Array.from(this.captures.values())
-      .filter(capture => capture.userId === userId)
+      .filter((c) => c.userId === userId)
       .sort((a, b) => {
-        // Starred items first, then by creation date
         if (a.isStarred && !b.isStarred) return -1;
         if (!a.isStarred && b.isStarred) return 1;
         return (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0);
@@ -243,21 +261,21 @@ export class MemStorage implements IStorage {
 
   async getCapturesByBucket(bucketId: string): Promise<Capture[]> {
     return Array.from(this.captures.values())
-      .filter(capture => capture.bucketId === bucketId)
+      .filter((c) => c.bucketId === bucketId)
       .sort((a, b) => {
         if (a.isStarred && !b.isStarred) return -1;
         if (!a.isStarred && b.isStarred) return 1;
-        return (a.order || 0) - (b.order || 0);
+        return (a.order ?? 0) - (b.order ?? 0);
       });
   }
 
   async getCapturesByFolder(folderId: string): Promise<Capture[]> {
     return Array.from(this.captures.values())
-      .filter(capture => capture.folderId === folderId)
+      .filter((c) => c.folderId === folderId)
       .sort((a, b) => {
         if (a.isStarred && !b.isStarred) return -1;
         if (!a.isStarred && b.isStarred) return 1;
-        return (a.order || 0) - (b.order || 0);
+        return (a.order ?? 0) - (b.order ?? 0);
       });
   }
 
@@ -267,17 +285,17 @@ export class MemStorage implements IStorage {
 
   async createCapture(insertCapture: InsertCapture): Promise<Capture> {
     const id = randomUUID();
-    const capture: Capture = { 
-      ...insertCapture, 
-      id, 
+    const capture: Capture = {
+      ...insertCapture,
+      id,
       createdAt: new Date(),
       updatedAt: new Date(),
       description: insertCapture.description ?? null,
       folderId: insertCapture.folderId ?? null,
-      isStarred: insertCapture.isStarred || false,
-      isCompleted: insertCapture.isCompleted || false,
-      order: insertCapture.order || 0,
-      attachments: (insertCapture.attachments as Attachment[]) || []
+      isStarred: insertCapture.isStarred ?? false,
+      isCompleted: insertCapture.isCompleted ?? false,
+      order: insertCapture.order ?? 0,
+      attachments: (insertCapture.attachments as Attachment[]) || [],
     };
     this.captures.set(id, capture);
     return capture;
@@ -287,12 +305,15 @@ export class MemStorage implements IStorage {
     const capture = this.captures.get(id);
     if (!capture) return undefined;
 
-    const updated: Capture = { 
-      ...capture, 
-      ...updateData, 
-      description: updateData.description !== undefined ? updateData.description ?? null : capture.description,
-      attachments: updateData.attachments ? (updateData.attachments as Attachment[]) : capture.attachments,
-      updatedAt: new Date() 
+    const updated: Capture = {
+      ...capture,
+      ...updateData,
+      description:
+        updateData.description !== undefined ? updateData.description ?? null : capture.description,
+      attachments: updateData.attachments
+        ? (updateData.attachments as Attachment[])
+        : capture.attachments,
+      updatedAt: new Date(),
     };
     this.captures.set(id, updated);
     return updated;
@@ -302,20 +323,22 @@ export class MemStorage implements IStorage {
     return this.captures.delete(id);
   }
 
-  // Task Templates
+  // ----------------- Task Templates -----------------
+
   async getTaskTemplates(userId?: string): Promise<TaskTemplate[]> {
-    return Array.from(this.taskTemplates.values())
-      .filter(template => template.isDefault || template.userId === userId);
+    return Array.from(this.taskTemplates.values()).filter(
+      (t) => t.isDefault || t.userId === userId
+    );
   }
 
   async createTaskTemplate(insertTemplate: InsertTaskTemplate): Promise<TaskTemplate> {
     const id = randomUUID();
-    const template: TaskTemplate = { 
-      ...insertTemplate, 
-      id, 
+    const template: TaskTemplate = {
+      ...insertTemplate,
+      id,
       createdAt: new Date(),
-      isDefault: insertTemplate.isDefault || false,
-      userId: insertTemplate.userId || null
+      isDefault: insertTemplate.isDefault ?? false,
+      userId: insertTemplate.userId || null,
     };
     this.taskTemplates.set(id, template);
     return template;
@@ -327,48 +350,77 @@ export class MemStorage implements IStorage {
     return this.taskTemplates.delete(id);
   }
 
-  // Reminders
+  // ----------------- Reminders -----------------
+
   async getCapturesWithReminders(userId: string): Promise<Capture[]> {
     const now = new Date();
     return Array.from(this.captures.values())
-      .filter(capture => 
-        capture.userId === userId && 
-        capture.reminderAt && 
-        capture.reminderAt > now &&
-        (!capture.snoozedUntil || capture.snoozedUntil <= now) &&
-        !capture.isCompleted
+      .filter(
+        (c) =>
+          c.userId === userId &&
+          c.reminderAt &&
+          c.reminderAt > now &&
+          (!c.snoozedUntil || c.snoozedUntil <= now) &&
+          !c.isCompleted
       )
-      .sort((a, b) => {
-        const aTime = a.reminderAt?.getTime() || 0;
-        const bTime = b.reminderAt?.getTime() || 0;
-        return aTime - bTime;
-      });
+      .sort((a, b) => (a.reminderAt?.getTime() || 0) - (b.reminderAt?.getTime() || 0));
   }
 
   async getCapturesDue(userId: string, beforeDate?: Date): Promise<Capture[]> {
     const cutoff = beforeDate || new Date();
     return Array.from(this.captures.values())
-      .filter(capture => 
-        capture.userId === userId && 
-        capture.reminderAt && 
-        capture.reminderAt <= cutoff &&
-        (!capture.snoozedUntil || capture.snoozedUntil <= cutoff) &&
-        !capture.isCompleted
+      .filter(
+        (c) =>
+          c.userId === userId &&
+          c.reminderAt &&
+          c.reminderAt <= cutoff &&
+          (!c.snoozedUntil || c.snoozedUntil <= cutoff) &&
+          !c.isCompleted
       )
-      .sort((a, b) => {
-        const aTime = a.reminderAt?.getTime() || 0;
-        const bTime = b.reminderAt?.getTime() || 0;
-        return aTime - bTime;
-      });
+      .sort((a, b) => (a.reminderAt?.getTime() || 0) - (b.reminderAt?.getTime() || 0));
   }
 
   async updateReminderNotified(captureId: string): Promise<void> {
     const capture = this.captures.get(captureId);
     if (capture) {
-      const updated = { ...capture, lastNotifiedAt: new Date() };
-      this.captures.set(captureId, updated);
+      this.captures.set(captureId, { ...capture, lastNotifiedAt: new Date() });
     }
+  }
+
+  // ----------------- Users -----------------
+
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find((u) => u.username === username);
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const user: User = {
+      ...insertUser,
+      id,
+      createdAt: new Date(),
+      biometricEnabled: insertUser.biometricEnabled ?? false,
+    };
+    this.users.set(id, user);
+
+    // Give every new user the default buckets (idempotent per user)
+    await this.createDefaultBuckets(id);
+
+    return user;
   }
 }
 
-export const storage = new MemStorage();
+/** Singleton instance that persists across dev hot-reloads. */
+declare global {
+  // eslint-disable-next-line no-var
+  var __memStorage__: MemStorage | undefined;
+}
+
+// Export the single shared instance
+export const storage =
+  globalThis.__memStorage__ ?? (globalThis.__memStorage__ = new MemStorage());
+
