@@ -276,27 +276,28 @@ export async function adaptedApiRequest(method: string, url: string, data?: unkn
  * Enhanced file upload handler that works with both environments
  */
 export async function adaptedFileUpload(file: File): Promise<Attachment> {
+  // Local mode: validate + save via filesystem service
   if (shouldUseLocalStorage()) {
-    const validation = await fileSystemService.validateFile(file)
-    if (!validation.isValid) throw new Error(validation.error || 'Invalid file')
-    return fileSystemService.saveFile(file, file.name, file.type)
+    const validation = await fileSystemService.validateFile(file);
+    if (!validation.isValid) {
+      throw new Error(validation.error || 'Invalid file');
+    }
+    return fileSystemService.saveFile(file, file.name, file.type);
   }
-
-  const form = new FormData()
-  form.append('file', file)
+  
+const form = new FormData();
+  form.append('file', file);
 
   const res = await fetch('/api/upload', {
     method: 'POST',
     body: form,
     credentials: 'include',
-  })
+  });
+
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText
-    throw new Error(text)
+    const text = (await res.text()) || res.statusText;
+    throw new Error(text);
   }
-  return res.json()
-}
 
-
-  return response.json();
+  return res.json() as Promise<Attachment>;
 }
