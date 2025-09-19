@@ -8,14 +8,17 @@ import { EditCapture } from '@/components/EditCapture';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { useStore } from '@/store/useStore';
 import { indexedDBService } from '@/lib/indexeddb';
+import { shouldUseLocalStorage } from '@/lib/storage-adapter';
 
 export default function Home() {
   const { isAuthenticated, navigation } = useStore();
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
-    // Initialize IndexedDB on app load
-    indexedDBService.init().catch(console.error);
+    // Initialize IndexedDB only when using local storage mode
+    if (shouldUseLocalStorage()) {
+      indexedDBService.init().catch(console.error);
+    }
     
     // Load dev utilities only in development mode
     if (import.meta.env.DEV) {
