@@ -26,11 +26,11 @@ jobs:
 
       # ⬇️ Build ONLY the Vite web assets (no server bundling)
       - name: Build web assets
-  env:
-    NODE_ENV: production
-    VITE_API_BASE: ${{ secrets.VITE_API_BASE_URL }}      # <- add this
-    VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}  # keep for compatibility
-  run: npm run build
+        env:
+          NODE_ENV: production
+          VITE_API_BASE: ${{ secrets.VITE_API_BASE_URL }}      # <- add this
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}  # keep for compatibility
+        run: npm run build
 
       - name: Show dist output (debug)
         run: |
