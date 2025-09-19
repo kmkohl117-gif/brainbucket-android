@@ -23,13 +23,17 @@ allprojects {
 }
 
 /**
- * ✅ Force Java 17 for every subproject so we don't get
- * "invalid source release: 21" from capacitor-android or plugins.
+ * ✅ Enforce Java 17 across Android modules WITHOUT using --release.
+ * This avoids the AGP error while ensuring everything compiles with JDK 17.
  */
 subprojects { p ->
     afterEvaluate {
-        // For Android (AGP) modules
-        if (p.hasProperty('android')) {
+        // Apply only to Android application/library modules
+        def isAndroidModule =
+            p.plugins.hasPlugin('com.android.application') ||
+            p.plugins.hasPlugin('com.android.library')
+
+        if (isAndroidModule && p.hasProperty('android')) {
             p.android {
                 compileOptions {
                     sourceCompatibility JavaVersion.VERSION_17
@@ -38,11 +42,11 @@ subprojects { p ->
             }
         }
 
-        // For any plain Java modules
-        tasks.withType(JavaCompile).configureEach {
-            options.release = 17
-            sourceCompatibility = JavaVersion.VERSION_17.toString()
-            targetCompatibility = JavaVersion.VERSION_17.toString()
+        // If Kotlin is present, set jvmTarget to 17 (safe no-op otherwise)
+        tasks.matching { it.class.name == 'org.jetbrains.kotlin.gradle.tasks.KotlinCompile' }.configureEach {
+            kotlinOptions {
+                jvmTarget = "17"
+            }
         }
     }
 }
@@ -50,3 +54,4 @@ subprojects { p ->
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
