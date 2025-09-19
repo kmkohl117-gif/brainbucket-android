@@ -263,29 +263,37 @@ export function shouldUseLocalStorage(): boolean {
   return getStorageMode() === 'local';
 }
 
-/**
- * Resolve a URL against the configured API base when needed.
- * Priority: runtime override → VITE_API_BASE → as-is.
- */
-function getApiBase(): string {
-  const runtime = (window as any).__API_BASE_URL__ as string | undefined;
-  const fromEnv = import.meta.env.VITE_API_BASE as string | undefined;
-  const base = (runtime || fromEnv || '').trim();
-  return base.replace(/\/$/, ''); // strip trailing slash
+/* ---------------------- Robust API base & fetch helper -------------------- */
+
+// Normalize a base URL (strip trailing slash).
+function normalizeBase(u: string) {
+  if (!u) return '';
+  return u.endsWith('/') ? u.slice(0, -1) : u;
 }
 
-function resolveApiUrl(url: string): string {
-  const base = getApiBase();
-  if (!url) return url;
+/**
+ * Accept several env names so CI / local differences don't break the app.
+ * Priority:
+ *   1) runtime (window.__API_BASE_URL__)
+ *   2) VITE_API_BASE          ← what the GitHub Action sets
+ *   3) VITE_API_BASE_URL
+ *   4) VITE_APP_ORIGIN
+ *   5) '' (relative; only useful in web dev)
+ */
+const API_BASE = normalizeBase(
+  (globalThis as any).__API_BASE_URL__ ||
+  import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_APP_ORIGIN ||
+  ''
+);
 
-  // absolute http(s) URL → keep as-is
-  if (/^https?:\/\//i.test(url)) return url;
-
-  // '/api/...' → prefix with base if provided
-  if (url.startsWith('/')) return base ? `${base}${url}` : url;
-
-  // 'api/...' → make absolute if base exists
-  return base ? `${base}/${url.replace(/^\/+/, '')}` : url;
+/** Join API_BASE and a path safely, and perform the fetch. */
+function httpFetch(path: string, init?: RequestInit) {
+  const url = API_BASE
+    ? `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
+    : path; // fallback to relative (web dev only)
+  return fetch(url, init);
 }
 
 /* ---------------------------- HTTP request path --------------------------- */
@@ -305,10 +313,8 @@ export async function adaptedApiRequest(
     });
   }
 
-  // HTTP mode → ensure we call the live server, not capacitor://localhost
-  const finalUrl = resolveApiUrl(url);
-
-  const res = await fetch(finalUrl, {
+  // HTTP mode → always go through httpFetch so the APK talks to your server
+  const res = await httpFetch(url, {
     method,
     headers: data ? { 'Content-Type': 'application/json' } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -333,7 +339,7 @@ export async function adaptedFileUpload(file: File): Promise<Attachment> {
   const form = new FormData();
   form.append('file', file);
 
-  const res = await fetch(resolveApiUrl('/api/upload'), {
+  const res = await httpFetch('/api/upload', {
     method: 'POST',
     body: form,
     credentials: 'include',
@@ -345,3 +351,4 @@ export async function adaptedFileUpload(file: File): Promise<Attachment> {
   }
   return res.json() as Promise<Attachment>;
 }
+
