@@ -30,6 +30,7 @@ const allowedOrigins = [
   "capacitor://localhost",
   "http://localhost",
   "http://127.0.0.1",
+  "https://brain-bucket-kmkohl117.replit.app",
   process.env.CORS_ORIGIN,     // e.g. https://brain-bucket-xyz.replit.app
   process.env.VITE_APP_ORIGIN, // optional extra slot if you prefer
 ].filter(Boolean) as string[];
