@@ -28,7 +28,7 @@ allprojects {
  */
 subprojects { p ->
     afterEvaluate {
-        // Apply only to Android application/library modules
+        // For Android modules, enforce Java 17
         def isAndroidModule =
             p.plugins.hasPlugin('com.android.application') ||
             p.plugins.hasPlugin('com.android.library')
@@ -42,11 +42,17 @@ subprojects { p ->
             }
         }
 
-        // If Kotlin is present, set jvmTarget to 17 (safe no-op otherwise)
-        tasks.matching { it.class.name == 'org.jetbrains.kotlin.gradle.tasks.KotlinCompile' }.configureEach {
+        // For ANY Kotlin in this subproject (e.g., capacitor-filesystem), enforce JVM 17
+        tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
             kotlinOptions {
                 jvmTarget = "17"
             }
+        }
+
+        // If the Kotlin extension supports toolchains, also pin it to 17 (safe no-op if absent)
+        def kotlinExt = p.extensions.findByName("kotlin")
+        if (kotlinExt && kotlinExt.metaClass.respondsTo(kotlinExt, "jvmToolchain", Integer)) {
+            kotlinExt.jvmToolchain(17)
         }
     }
 }
