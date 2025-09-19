@@ -14,7 +14,7 @@ import type {
 } from '@shared/schema';
 
 /**
- * Storage Adapter that provides HTTP API-compatible interface over IndexedDB
+ * Storage Adapter that provides HTTP API-compatible interface over IndexedDB.
  * This adapter mimics the Express server routes while using local IndexedDB.
  */
 
@@ -55,7 +55,7 @@ class LocalStorageAdapter {
         case 'captures':        return this.handleCapturesRequest(method, urlParts, data);
         case 'buckets':         return this.handleBucketsRequest(method, urlParts, data);
         case 'folders':         return this.handleFoldersRequest(method, urlParts, data);
-        case 'task-templates':  return this.handleTaskTemplatesRequest(method, urlParts, data);
+        case 'task-templates':  return this.handleTaskTemplatesRequest(method);
         case 'reminders':       return this.handleRemindersRequest(method, urlParts, data);
         case 'upload':          return this.handleUploadRequest(method, data);
         default:                return this.createErrorResponse(`Unknown endpoint: ${endpoint}`, 404);
@@ -288,15 +288,27 @@ const API_BASE = normalizeBase(
   ''
 );
 
+// 🔎 Always log what base URL we resolved at runtime (APK & web)
+console.log(
+  `🌐 BrainBucket API_BASE = '${API_BASE || "(relative)"}'`,
+  {
+    from: (globalThis as any).__API_BASE_URL__ ? 'window.__API_BASE_URL__' : 'env',
+    VITE_API_BASE: import.meta.env.VITE_API_BASE,
+    VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+    VITE_APP_ORIGIN: import.meta.env.VITE_APP_ORIGIN,
+  }
+);
 
-// Debug: confirm which API base is active at runtime
-console.log('🌐 Using API_BASE:', API_BASE);
-
-/** Join API_BASE and a path safely, and perform the fetch. */
+/** Join API_BASE and a path safely, and perform the fetch (with tracing). */
 function httpFetch(path: string, init?: RequestInit) {
   const url = API_BASE
     ? `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
     : path; // fallback to relative (web dev only)
+
+  // 🛰️ Trace all outgoing requests
+  const m = (init?.method || 'GET').toUpperCase();
+  console.log(`🛰️ [BB-NET] ${m} ${url}`);
+
   return fetch(url, init);
 }
 
@@ -327,6 +339,7 @@ export async function adaptedApiRequest(
 
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    console.error(`🧨 [BB-NET] ${method} ${API_BASE ? `${API_BASE}${url}` : url} -> ${res.status} ${text}`);
     throw new Error(`${res.status}: ${text}`);
   }
   return res;
@@ -351,6 +364,7 @@ export async function adaptedFileUpload(file: File): Promise<Attachment> {
 
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+    console.error(`🧨 [BB-NET] POST ${API_BASE ? `${API_BASE}/api/upload` : '/api/upload'} -> ${res.status} ${text}`);
     throw new Error(`Upload failed: ${text}`);
   }
   return res.json() as Promise<Attachment>;
