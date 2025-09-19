@@ -1,58 +1,100 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch: {}         # <— allow manual “Run workflow”
   push:
-    branches: [ "main" ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
+          cache: "npm"
 
-      - name: Install deps
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build web
+      # ⬇️ This is the important part that the Replit workflow didn't include:
+      - name: Build web + server (bundled) with env
         env:
-          VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
+          NODE_ENV: production
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
         run: npm run build
 
-      - name: Sync Capacitor Android
-        env:
-          CI: true
-        run: npx cap sync android
+      - name: Show dist output (debug)
+        run: |
+          echo "---- dist ----"
+          ls -la dist || true
+          echo "--------------"
 
-      - name: Setup Java (JDK 21)
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          java-version: "17"
+          distribution: "temurin"
 
+      # (Optional but fine to keep; Replit’s workflow had it)
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
 
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses || true
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-      - name: Ensure gradlew is executable
+      - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Assemble Debug APK
-        run: cd android && ./gradlew assembleDebug --stacktrace
+      # Keep this if your repo expects a sync at build time
+      - name: Sync Capacitor
+        run: npx cap sync android
 
-      - name: Upload APK artifact
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug.apk
+          name: brainbucket-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
 
+      - name: Build release APK (unsigned)
+        working-directory: android
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: brainbucket-release-unsigned
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          retention-days: 30
+
+      - name: Display APK info
+        run: |
+          echo "✅ APK Build Complete!"
+          echo "📱 Debug APK: Ready to install (signed for testing)"
+          echo "🔧 Release APK: Unsigned (requires signing for production)"
+          echo ""
+          echo "📦 Download your APK from the Actions artifacts above"
