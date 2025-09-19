@@ -288,6 +288,7 @@ const API_BASE = normalizeBase(
   ''
 );
 
+
 // Debug: confirm which API base is active at runtime
 console.log('🌐 Using API_BASE:', API_BASE);
 
