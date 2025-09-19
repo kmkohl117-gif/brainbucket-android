@@ -3,11 +3,19 @@ console.log("EARLY: NODE_ENV    =", process.env.NODE_ENV ?? "(unset)");
 
 
 import express, { type Request, type Response, type NextFunction } from "express";
-import cors from "cors";
+import cors from "cors";   // ✅ only import once
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// ✅ enable CORS for all requests
+app.use(cors());
+
+/* --------------------------- rest of your setup --------------------------- */
+
+// (you probably already have other app.use() or route setup below this)
+
 
 /* ----------------------------- CORS setup ----------------------------- */
 /**
@@ -69,7 +77,7 @@ app.use((req, res, next) => {
   const originalResJson = res.json.bind(res);
   (res as any).json = function (bodyJson: any, ...args: any[]) {
     capturedJsonResponse = bodyJson;
-    return originalResJson(bodyJson, ...args);
+    return originalResJson(bodyJson);
   };
 
   res.on("finish", () => {

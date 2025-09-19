@@ -178,7 +178,11 @@ class LocalStorageAdapter {
   }
 
   // -------- Task Templates --------
-  private async handleTaskTemplatesRequest(method: string): Promise<StorageAdapterResponse> {
+  private async handleTaskTemplatesRequest(
+  method: string,
+  _parts?: string[],
+  _data?: any
+): Promise<StorageAdapterResponse> {
     switch (method) {
       case 'GET': {
         const rows = await indexedDBService.getTaskTemplates(this.mockUserId);
@@ -285,8 +289,9 @@ const API_BASE = normalizeBase(
   import.meta.env.VITE_API_BASE ||
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_APP_ORIGIN ||
-  ''
+  'https://brain-bucket-kmkohl117.replit.app'   // <--- force default
 );
+
 
 // 🔎 Always log what base URL we resolved at runtime (APK & web)
 console.log(
@@ -299,7 +304,7 @@ console.log(
   }
 );
 
-/** Join API_BASE and a path safely, and perform the fetch (with tracing). */
+
 function httpFetch(path: string, init?: RequestInit) {
   const url = API_BASE
     ? `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
