@@ -24,12 +24,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # ⬇️ This is the important part that the Replit workflow didn't include:
-      - name: Build web + server (bundled) with env
+      # ⬇️ Build ONLY the Vite web assets (no server bundling)
+      - name: Build web assets
         env:
           NODE_ENV: production
+          # include only Vite vars needed at build-time
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-          CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
         run: npm run build
 
       - name: Show dist output (debug)
@@ -44,7 +44,6 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
-      # (Optional but fine to keep; Replit’s workflow had it)
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -65,7 +64,6 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      # Keep this if your repo expects a sync at build time
       - name: Sync Capacitor
         run: npx cap sync android
 
