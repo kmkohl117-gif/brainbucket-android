@@ -28,8 +28,8 @@ jobs:
       - name: Build web assets
         env:
           NODE_ENV: production
-          # include only Vite vars needed at build-time
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_STORAGE_MODE: api            # <-- add this line
         run: npm run build
 
       - name: Show dist output (debug)
