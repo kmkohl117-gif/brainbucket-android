@@ -26,14 +26,15 @@ allprojects {
  * ✅ Enforce Java 17 across Android modules WITHOUT using --release.
  * This avoids the AGP error while ensuring everything compiles with JDK 17.
  */
+// Force Java/Kotlin 17 everywhere (safe even if a subproject has no Kotlin)
 subprojects { p ->
     afterEvaluate {
-        // For Android modules, enforce Java 17
-        def isAndroidModule =
+        // For Android modules, set Java 17
+        def isAndroid =
             p.plugins.hasPlugin('com.android.application') ||
             p.plugins.hasPlugin('com.android.library')
 
-        if (isAndroidModule && p.hasProperty('android')) {
+        if (isAndroid && p.hasProperty('android')) {
             p.android {
                 compileOptions {
                     sourceCompatibility JavaVersion.VERSION_17
@@ -42,20 +43,28 @@ subprojects { p ->
             }
         }
 
-        // For ANY Kotlin in this subproject (e.g., capacitor-filesystem), enforce JVM 17
-        tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-            kotlinOptions {
-                jvmTarget = "17"
+        // For ANY Kotlin tasks, set JVM target = 17 (use reflection to avoid imports)
+        try {
+            def KotlinCompileClass = Class.forName('org.jetbrains.kotlin.gradle.tasks.KotlinCompile')
+            tasks.withType(KotlinCompileClass).configureEach {
+                kotlinOptions {
+                    jvmTarget = "17"
+                }
             }
+        } catch (ignored) {
+            // no Kotlin in this subproject
         }
 
-        // If the Kotlin extension supports toolchains, also pin it to 17 (safe no-op if absent)
-        def kotlinExt = p.extensions.findByName("kotlin")
-        if (kotlinExt && kotlinExt.metaClass.respondsTo(kotlinExt, "jvmToolchain", Integer)) {
-            kotlinExt.jvmToolchain(17)
-        }
+        // If the Kotlin extension exists, pin its toolchain to 17 (optional, safe)
+        try {
+            def kotlinExt = p.extensions.findByName("kotlin")
+            if (kotlinExt && kotlinExt.metaClass.respondsTo(kotlinExt, "jvmToolchain", Integer)) {
+                kotlinExt.jvmToolchain(17)
+            }
+        } catch (ignored) { }
     }
 }
+
 
 task clean(type: Delete) {
     delete rootProject.buildDir
