@@ -1,7 +1,6 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
-    
     repositories {
         google()
         mavenCentral()
@@ -9,7 +8,6 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.7.2'
         classpath 'com.google.gms:google-services:4.4.2'
-
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
@@ -21,6 +19,31 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+}
+
+/**
+ * ✅ Force Java 17 for every subproject so we don't get
+ * "invalid source release: 21" from capacitor-android or plugins.
+ */
+subprojects { p ->
+    afterEvaluate {
+        // For Android (AGP) modules
+        if (p.hasProperty('android')) {
+            p.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        }
+
+        // For any plain Java modules
+        tasks.withType(JavaCompile).configureEach {
+            options.release = 17
+            sourceCompatibility = JavaVersion.VERSION_17.toString()
+            targetCompatibility = JavaVersion.VERSION_17.toString()
+        }
     }
 }
 
