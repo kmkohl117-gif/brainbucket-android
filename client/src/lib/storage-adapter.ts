@@ -288,6 +288,9 @@ const API_BASE = normalizeBase(
   ''
 );
 
+// Debug: confirm which API base is active at runtime
+console.log('🌐 Using API_BASE:', API_BASE);
+
 /** Join API_BASE and a path safely, and perform the fetch. */
 function httpFetch(path: string, init?: RequestInit) {
   const url = API_BASE
