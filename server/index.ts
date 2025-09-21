@@ -13,14 +13,19 @@ const app = express();
  *   - Your published Replit URL (set in CORS_ORIGIN secret)
  */
 // Temporary ultra-permissive CORS for debugging
-app.use(cors({
-  origin: true,  // Allow all origins
-  credentials: true,
-  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
-app.options("*", cors());
-/** ---------- END CORS ---------- */
+// Nuclear CORS - manual headers that bypass all libraries
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
+// Remove the app.use(cors(...)) lines - replace with the above
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
