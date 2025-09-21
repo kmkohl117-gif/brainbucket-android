@@ -11,6 +11,7 @@ import { Search, Plus, Palette, CheckSquare, ShoppingCart, Lightbulb, Lock, Hear
 import type { Bucket, Capture, InsertBucket } from '@shared/schema';
 import { SortableList, SortableItem } from '@/components/dnd';
 import { useToast } from '@/hooks/use-toast';
+import DebugInfo from './DebugInfo'; // adjust path as needed
 
 export function BucketsScreen() {
   const { setCurrentScreen, setSelectedBucket } = useStore();
@@ -165,7 +166,9 @@ export function BucketsScreen() {
     { name: 'Music', icon: 'fas fa-music' }
   ];
 
-  return (
+return (
+  <div>
+    <DebugInfo />
     <div className="min-h-screen bg-background pb-16">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-3 safe-area-pt">
@@ -388,5 +391,5 @@ export function BucketsScreen() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
+  </div>  {/* This closing </div> was missing */}
+);
