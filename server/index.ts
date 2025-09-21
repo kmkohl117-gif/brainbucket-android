@@ -12,33 +12,14 @@ const app = express();
  *   - http://localhost, 127.0.0.1 (browser dev)
  *   - Your published Replit URL (set in CORS_ORIGIN secret)
  */
-const allowedOrigins = [
-  "capacitor://localhost",
-  "http://localhost",
-  "http://127.0.0.1",
-  "https://localhost",        // Add this for the weird localhost HTTPS requests
-  process.env.CORS_ORIGIN,    // Set this to your published Replit URL
-].filter(Boolean) as string[];
-
-// Debug log to see what the server reads
-console.log(`BOOT: CORS_ORIGIN=${process.env.CORS_ORIGIN ?? "(unset)"}`);
-
-const corsOptions: cors.CorsOptions = {
-  origin(origin, callback) {
-    // No origin (mobile WebView / same-origin) => allow
-    if (!origin) return callback(null, true);
-    const ok = allowedOrigins.some((o) => origin === o || origin.startsWith(o));
-    return ok
-      ? callback(null, true)
-      : callback(new Error(`CORS blocked: ${origin}`));
-  },
+// Temporary ultra-permissive CORS for debugging
+app.use(cors({
+  origin: true,  // Allow all origins
   credentials: true,
   methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-};
-
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+}));
+app.options("*", cors());
 /** ---------- END CORS ---------- */
 
 app.use(express.json());
@@ -90,7 +71,7 @@ app.use((req, res, next) => {
     { port, host: "0.0.0.0", reusePort: true },
     () => {
       log(`serving on port ${port}`);
-      log(`CORS allowed origins: ${allowedOrigins.join(", ") || "(none)"}`);
+      log(`CORS: allowing all origins (debug mode)`);
     }
   );
 })();
