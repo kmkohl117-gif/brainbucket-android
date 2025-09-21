@@ -64,33 +64,55 @@ export function hasNativeFilesystem(): boolean {
 }
 
 /**
- * Determine storage mode.
- * - For APK/Capacitor native: ALWAYS use HTTP API (prevents duplicate seeding).
- * - For web DEV only: allow forcing local mode via a debug flag.
- * - Otherwise default to HTTP API.
+ * Determine storage mode - FORCE HTTP for production builds and native apps
+ * 
+ * Priority:
+ * 1. Env overrides (VITE_FORCE_LOCAL="1" or VITE_FORCE_HTTP="1") 
+ * 2. Production builds always use HTTP
+ * 3. Native/Capacitor always use HTTP
+ * 4. Default to HTTP
  */
 export function getStorageMode(): StorageMode {
-  // Dev-only escape hatch: in the browser, you can force local mode with
-  //   window.__FORCE_LOCAL_STORAGE__ = true
-  if (import.meta.env.DEV && (window as any).__FORCE_LOCAL_STORAGE__) {
+  const env = getCapacitorEnvironment()
+  
+  // Build-time env overrides (highest priority)
+  if (import.meta.env.VITE_FORCE_LOCAL === '1') {
+    console.log('🔧 Storage mode: LOCAL (forced by VITE_FORCE_LOCAL)')
     return 'local'
   }
-
-  const env = getCapacitorEnvironment()
-
-  // Native app (Android/iOS via Capacitor) should always hit the server API.
-  if (env.isNative || env.isCapacitor) {
+  if (import.meta.env.VITE_FORCE_HTTP === '1') {
+    console.log('🔧 Storage mode: HTTP (forced by VITE_FORCE_HTTP)')
     return 'http'
   }
 
-  // Default for web is HTTP too (keeps behavior consistent).
+  // Production builds always use HTTP (this should catch your APK)
+  if (import.meta.env.PROD) {
+    console.log('🔧 Storage mode: HTTP (production build)')
+    return 'http'
+  }
+
+  // Native/Capacitor always use HTTP
+  if (env.isNative || env.isCapacitor) {
+    console.log('🔧 Storage mode: HTTP (native/Capacitor environment)')
+    return 'http'
+  }
+
+  // Dev-only browser escape hatch (very limited use)
+  if (import.meta.env.DEV && (window as any).__FORCE_LOCAL_STORAGE__) {
+    console.log('🔧 Storage mode: LOCAL (dev browser override)')
+    return 'local'
+  }
+
+  // Default to HTTP
+  console.log('🔧 Storage mode: HTTP (default)')
   return 'http'
 }
 
 /** Should we use local storage right now? */
 export function shouldUseLocalStorage(): boolean {
-  // Only allow local mode in DEV, and only if explicitly forced.
-  return import.meta.env.DEV && getStorageMode() === 'local'
+  const result = getStorageMode() === 'local'
+  console.log(`🔧 shouldUseLocalStorage: ${result}`)
+  return result
 }
 
 /** Should we request persistent storage? */
@@ -104,9 +126,9 @@ export function shouldRequestPersistentStorage(): boolean {
 export async function requestPersistentStorage(): Promise<boolean> {
   if (!shouldRequestPersistentStorage()) return false
 
-  if ('storage' in navigator && 'persist' in navigator.storage) {
+  if ('storage' in navigator && 'persist' in (navigator as any).storage) {
     try {
-      const isPersistent = await navigator.storage.persist()
+      const isPersistent = await (navigator as any).storage.persist()
       console.log(`Persistent storage ${isPersistent ? 'granted' : 'denied'}`)
       return isPersistent
     } catch (error) {
@@ -124,9 +146,9 @@ export async function getStorageUsage(): Promise<{
   quota: number
   usagePercent: number
 } | null> {
-  if ('storage' in navigator && 'estimate' in navigator.storage) {
+  if ('storage' in navigator && 'estimate' in (navigator as any).storage) {
     try {
-      const estimate = await navigator.storage.estimate()
+      const estimate = await (navigator as any).storage.estimate()
       const usage = estimate.usage || 0
       const quota = estimate.quota || 0
       const usagePercent = quota > 0 ? (usage / quota) * 100 : 0
@@ -149,12 +171,13 @@ export function logEnvironmentInfo(): void {
   console.log('Is Capacitor:', env.isCapacitor)
   console.log('Is Native:', env.isNative)
   console.log('Is Hybrid:', env.isHybrid)
+  console.log('Is Production:', import.meta.env.PROD)
+  console.log('Is Development:', import.meta.env.DEV)
   console.log('Storage Mode:', storageMode)
   console.log('Has Native Filesystem:', hasNativeFilesystem())
+  console.log('API Base URL:', import.meta.env.VITE_API_BASE || '(not set)')
   console.groupEnd()
 }
 
-// Auto-log environment in development
-if (import.meta.env.DEV) {
-  logEnvironmentInfo()
-}
+// Auto-log environment in all modes (so we can see what's happening in APK)
+logEnvironmentInfo()
