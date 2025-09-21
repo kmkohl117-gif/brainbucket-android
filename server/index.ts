@@ -16,7 +16,8 @@ const allowedOrigins = [
   "capacitor://localhost",
   "http://localhost",
   "http://127.0.0.1",
-  process.env.CORS_ORIGIN,     // Set this to your published Replit URL
+  "https://localhost",        // Add this for the weird localhost HTTPS requests
+  process.env.CORS_ORIGIN,    // Set this to your published Replit URL
 ].filter(Boolean) as string[];
 
 // Debug log to see what the server reads

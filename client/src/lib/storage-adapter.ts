@@ -317,16 +317,9 @@ export function shouldUseLocalStorage(): boolean {
 }
 
 /**
- * API base URL for HTTP mode - CRITICAL for Capacitor apps
- * Priority order:
- *   1. VITE_API_BASE (build time env var)
- *   2. Runtime override
- *   3. Empty string fallback (relative URLs for web)
+ * API base URL for HTTP mode - HARD-CODED to fix localhost issue
  */
-const API_BASE = 
-  import.meta.env.VITE_API_BASE ||
-  (window as any).__API_BASE_URL__ ||
-  '';
+const API_BASE = 'https://brain-bucket-kmkohl117.replit.app';
 
 /**
  * Wrapper function that ALWAYS uses HTTP API (bypasses storage mode detection)
