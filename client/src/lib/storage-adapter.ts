@@ -14,8 +14,10 @@ import type {
 } from '@shared/schema';
 
 /**
- * Storage Adapter that provides HTTP API-compatible interface over IndexedDB.
- * This adapter mimics the Express server routes while using local IndexedDB.
+ * Storage Adapter that provides HTTP API-compatible interface over IndexedDB
+ * 
+ * This adapter mimics the exact behavior of the Express server routes
+ * while using local IndexedDB storage instead of HTTP requests.
  */
 
 export interface StorageAdapterResponse {
@@ -30,15 +32,25 @@ export interface StorageAdapterResponse {
 class LocalStorageAdapter {
   private mockUserId = 'user-123'; // Match the server's mock user ID
 
+  /**
+   * Create a mock Response object that mimics fetch Response
+   */
   private createResponse(data: any, status: number = 200, statusText: string = 'OK'): StorageAdapterResponse {
-    const headers = new Headers({ 'Content-Type': 'application/json' });
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+    });
+
     return {
       ok: status >= 200 && status < 300,
       status,
       statusText,
       headers,
-      async json() { return data; },
-      async text() { return JSON.stringify(data); },
+      async json() {
+        return data;
+      },
+      async text() {
+        return JSON.stringify(data);
+      },
     };
   }
 
@@ -46,19 +58,35 @@ class LocalStorageAdapter {
     return this.createResponse({ error: message }, status, 'Error');
   }
 
+  /**
+   * Route HTTP-like requests to IndexedDB operations
+   */
   async handleRequest(method: string, url: string, data?: any): Promise<StorageAdapterResponse> {
     try {
       const urlParts = url.replace('/api/', '').split('/');
       const endpoint = urlParts[0];
 
       switch (endpoint) {
-        case 'captures':        return this.handleCapturesRequest(method, urlParts, data);
-        case 'buckets':         return this.handleBucketsRequest(method, urlParts, data);
-        case 'folders':         return this.handleFoldersRequest(method, urlParts, data);
-        case 'task-templates':  return this.handleTaskTemplatesRequest(method);
-        case 'reminders':       return this.handleRemindersRequest(method, urlParts, data);
-        case 'upload':          return this.handleUploadRequest(method, data);
-        default:                return this.createErrorResponse(`Unknown endpoint: ${endpoint}`, 404);
+        case 'captures':
+          return this.handleCapturesRequest(method, urlParts, data);
+
+        case 'buckets':
+          return this.handleBucketsRequest(method, urlParts, data);
+
+        case 'folders':
+          return this.handleFoldersRequest(method, urlParts, data);
+
+        case 'task-templates':
+          return this.handleTaskTemplatesRequest(method, urlParts, data);
+
+        case 'reminders':
+          return this.handleRemindersRequest(method, urlParts, data);
+
+        case 'upload':
+          return this.handleUploadRequest(method, data);
+
+        default:
+          return this.createErrorResponse(`Unknown endpoint: ${endpoint}`, 404);
       }
     } catch (error: any) {
       console.error('Storage adapter error:', error);
@@ -67,44 +95,51 @@ class LocalStorageAdapter {
   }
 
   // -------- Captures --------
-  private async handleCapturesRequest(method: string, parts: string[], data?: any): Promise<StorageAdapterResponse> {
-    const [, p1, p2] = parts;
+  private async handleCapturesRequest(method: string, urlParts: string[], data?: any): Promise<StorageAdapterResponse> {
+    const [, param1, param2] = urlParts;
 
     switch (method) {
       case 'GET': {
-        if (!p1) {
-          const rows = await indexedDBService.getCapturesByUser(this.mockUserId);
-          return this.createResponse(rows);
+        if (!param1) {
+          // GET /api/captures
+          const captures = await indexedDBService.getCapturesByUser(this.mockUserId);
+          return this.createResponse(captures);
         }
-        if (p1 === 'bucket' && p2) {
-          const rows = await indexedDBService.getCapturesByBucket(p2);
-          return this.createResponse(rows);
+        if (param1 === 'bucket' && param2) {
+          // GET /api/captures/bucket/:bucketId
+          const captures = await indexedDBService.getCapturesByBucket(param2);
+          return this.createResponse(captures);
         }
-        if (p1 === 'folder' && p2) {
-          const rows = await indexedDBService.getCapturesByFolder(p2);
-          return this.createResponse(rows);
+        if (param1 === 'folder' && param2) {
+          // GET /api/captures/folder/:folderId
+          const captures = await indexedDBService.getCapturesByFolder(param2);
+          return this.createResponse(captures);
         }
-        const row = await indexedDBService.getCapture(p1);
-        return row ? this.createResponse(row) : this.createErrorResponse('Capture not found', 404);
+        // GET /api/captures/:id
+        const capture = await indexedDBService.getCapture(param1);
+        return capture ? this.createResponse(capture) : this.createErrorResponse('Capture not found', 404);
       }
 
       case 'POST': {
+        // POST /api/captures
         if (!data) return this.createErrorResponse('Invalid capture data', 400);
-        const payload = { ...data, userId: this.mockUserId } as InsertCapture;
-        const row = await indexedDBService.createCapture(payload);
-        return this.createResponse(row);
+        const captureData = { ...data, userId: this.mockUserId } as InsertCapture;
+        const newCapture = await indexedDBService.createCapture(captureData);
+        return this.createResponse(newCapture);
       }
 
       case 'PATCH': {
-        if (!p1) return this.createErrorResponse('Capture ID required', 400);
-        const row = await indexedDBService.updateCapture(p1, data as Partial<InsertCapture>);
-        return row ? this.createResponse(row) : this.createErrorResponse('Capture not found', 404);
+        // PATCH /api/captures/:id
+        if (!param1) return this.createErrorResponse('Capture ID required', 400);
+        const updated = await indexedDBService.updateCapture(param1, data as Partial<InsertCapture>);
+        return updated ? this.createResponse(updated) : this.createErrorResponse('Capture not found', 404);
       }
 
       case 'DELETE': {
-        if (!p1) return this.createErrorResponse('Capture ID required', 400);
-        const ok = await indexedDBService.deleteCapture(p1);
-        return ok ? this.createResponse({ success: true }) : this.createErrorResponse('Capture not found', 404);
+        // DELETE /api/captures/:id
+        if (!param1) return this.createErrorResponse('Capture ID required', 400);
+        const deleted = await indexedDBService.deleteCapture(param1);
+        return deleted ? this.createResponse({ success: true }) : this.createErrorResponse('Capture not found', 404);
       }
 
       default:
@@ -113,35 +148,40 @@ class LocalStorageAdapter {
   }
 
   // -------- Buckets --------
-  private async handleBucketsRequest(method: string, parts: string[], data?: any): Promise<StorageAdapterResponse> {
-    const [, p1] = parts;
+  private async handleBucketsRequest(method: string, urlParts: string[], data?: any): Promise<StorageAdapterResponse> {
+    const [, param1] = urlParts;
 
     switch (method) {
       case 'GET': {
-        if (!p1) {
-          const rows = await indexedDBService.getBucketsByUser(this.mockUserId);
-          return this.createResponse(rows);
+        if (!param1) {
+          // GET /api/buckets
+          const buckets = await indexedDBService.getBucketsByUser(this.mockUserId);
+          return this.createResponse(buckets);
         }
-        const row = await indexedDBService.getBucket(p1);
-        return row ? this.createResponse(row) : this.createErrorResponse('Bucket not found', 404);
+        // GET /api/buckets/:id
+        const bucket = await indexedDBService.getBucket(param1);
+        return bucket ? this.createResponse(bucket) : this.createErrorResponse('Bucket not found', 404);
       }
 
       case 'POST': {
-        if (p1 === 'reorder') {
+        if (param1 === 'reorder') {
+          // POST /api/buckets/reorder
           if (!data?.orderedIds) return this.createErrorResponse('Invalid reorder data', 400);
           try {
-            const rows = await indexedDBService.reorderBuckets(this.mockUserId, data.orderedIds as string[]);
-            return this.createResponse(rows);
+            const buckets = await indexedDBService.reorderBuckets(this.mockUserId, data.orderedIds as string[]);
+            return this.createResponse(buckets);
           } catch (e: any) {
             const msg = String(e?.message || '');
             if (msg.includes('Invalid bucket IDs')) return this.createErrorResponse(msg, 400);
             throw e;
           }
         }
+
+        // POST /api/buckets
         if (!data) return this.createErrorResponse('Invalid bucket data', 400);
-        const payload = { ...data, userId: this.mockUserId } as InsertBucket;
-        const row = await indexedDBService.createBucket(payload);
-        return this.createResponse(row);
+        const bucketData = { ...data, userId: this.mockUserId } as InsertBucket;
+        const newBucket = await indexedDBService.createBucket(bucketData);
+        return this.createResponse(newBucket);
       }
 
       default:
@@ -150,26 +190,29 @@ class LocalStorageAdapter {
   }
 
   // -------- Folders --------
-  private async handleFoldersRequest(method: string, parts: string[], data?: any): Promise<StorageAdapterResponse> {
-    const [, p1, p2] = parts;
+  private async handleFoldersRequest(method: string, urlParts: string[], data?: any): Promise<StorageAdapterResponse> {
+    const [, param1, param2] = urlParts;
 
     switch (method) {
       case 'GET': {
-        if (p1 === 'bucket' && p2) {
-          const rows = await indexedDBService.getFoldersByBucket(p2);
-          return this.createResponse(rows);
+        if (param1 === 'bucket' && param2) {
+          // GET /api/folders/bucket/:bucketId
+          const folders = await indexedDBService.getFoldersByBucket(param2);
+          return this.createResponse(folders);
         }
-        if (p1) {
-          const row = await indexedDBService.getFolder(p1);
-          return row ? this.createResponse(row) : this.createErrorResponse('Folder not found', 404);
+        if (param1) {
+          // GET /api/folders/:id
+          const folder = await indexedDBService.getFolder(param1);
+          return folder ? this.createResponse(folder) : this.createErrorResponse('Folder not found', 404);
         }
         return this.createErrorResponse('Invalid folder request', 400);
       }
 
       case 'POST': {
+        // POST /api/folders
         if (!data) return this.createErrorResponse('Invalid folder data', 400);
-        const row = await indexedDBService.createFolder(data as InsertFolder);
-        return this.createResponse(row);
+        const newFolder = await indexedDBService.createFolder(data as InsertFolder);
+        return this.createResponse(newFolder);
       }
 
       default:
@@ -178,26 +221,24 @@ class LocalStorageAdapter {
   }
 
   // -------- Task Templates --------
-  private async handleTaskTemplatesRequest(
-  method: string,
-  _parts?: string[],
-  _data?: any
-): Promise<StorageAdapterResponse> {
+  private async handleTaskTemplatesRequest(method: string, urlParts: string[], data?: any): Promise<StorageAdapterResponse> {
     switch (method) {
       case 'GET': {
-        const rows = await indexedDBService.getTaskTemplates(this.mockUserId);
-        return this.createResponse(rows);
+        // GET /api/task-templates
+        const templates = await indexedDBService.getTaskTemplates(this.mockUserId);
+        return this.createResponse(templates);
       }
 
       case 'POST': {
+        // POST /api/task-templates
         // Create a *custom* template (defaults are seeded once at app start)
-        const row = await indexedDBService.createTaskTemplate({
+        const newTemplate = await indexedDBService.createTaskTemplate({
           userId: this.mockUserId,
           isDefault: false,
           name: '',
           category: 'custom',
         } as InsertTaskTemplate);
-        return this.createResponse(row);
+        return this.createResponse(newTemplate);
       }
 
       default:
@@ -206,24 +247,27 @@ class LocalStorageAdapter {
   }
 
   // -------- Reminders --------
-  private async handleRemindersRequest(method: string, parts: string[], data?: any): Promise<StorageAdapterResponse> {
-    const [, p1, p2] = parts;
+  private async handleRemindersRequest(method: string, urlParts: string[], data?: any): Promise<StorageAdapterResponse> {
+    const [, param1, param2] = urlParts;
 
     switch (method) {
       case 'GET': {
-        if (p1 === 'due') {
-          const before = data?.before ? new Date(data.before) : undefined;
-          const rows = await indexedDBService.getCapturesDue(this.mockUserId, before);
-          return this.createResponse(rows);
+        if (param1 === 'due') {
+          // GET /api/reminders/due
+          const beforeDate = data?.before ? new Date(data.before) : undefined;
+          const due = await indexedDBService.getCapturesDue(this.mockUserId, beforeDate);
+          return this.createResponse(due);
         }
-        const rows = await indexedDBService.getCapturesWithReminders(this.mockUserId);
-        return this.createResponse(rows);
+        // GET /api/reminders
+        const reminders = await indexedDBService.getCapturesWithReminders(this.mockUserId);
+        return this.createResponse(reminders);
       }
 
       case 'POST': {
-        if (p2 === 'notified') {
-          if (!p1) return this.createErrorResponse('Capture ID required', 400);
-          await indexedDBService.updateReminderNotified(p1);
+        if (param2 === 'notified') {
+          // POST /api/reminders/:captureId/notified
+          if (!param1) return this.createErrorResponse('Capture ID required', 400);
+          await indexedDBService.updateReminderNotified(param1);
           return this.createResponse({ success: true });
         }
         return this.createErrorResponse('Invalid reminder endpoint', 400);
@@ -241,9 +285,11 @@ class LocalStorageAdapter {
     try {
       if (!data?.file) return this.createErrorResponse('No file uploaded', 400);
 
+      // Validate file using filesystem service
       const validation = await fileSystemService.validateFile(data.file);
       if (!validation.isValid) return this.createErrorResponse(validation.error || 'Invalid file', 400);
 
+      // Save file using filesystem service
       const attachment = await fileSystemService.saveFile(
         data.file,
         validation.fileInfo?.name || 'unknown',
@@ -258,74 +304,40 @@ class LocalStorageAdapter {
   }
 }
 
-/* ------------------------- Adapter & mode helpers ------------------------- */
-
+/**
+ * Main storage adapter instance
+ */
 export const storageAdapter = new LocalStorageAdapter();
 
-/** Use local IndexedDB or HTTP API? */
+/**
+ * Determine if we should use local storage or HTTP API
+ */
 export function shouldUseLocalStorage(): boolean {
   return getStorageMode() === 'local';
 }
 
-/* ---------------------- Robust API base & fetch helper -------------------- */
-
-// Normalize a base URL (strip trailing slash).
-function normalizeBase(u: string) {
-  if (!u) return '';
-  return u.endsWith('/') ? u.slice(0, -1) : u;
-}
+/**
+ * API base URL for HTTP mode - CRITICAL for Capacitor apps
+ * Priority order:
+ *   1. VITE_API_BASE (build time env var)
+ *   2. Runtime override
+ *   3. Empty string fallback (relative URLs for web)
+ */
+const API_BASE = 
+  import.meta.env.VITE_API_BASE ||
+  (window as any).__API_BASE_URL__ ||
+  '';
 
 /**
- * Accept several env names so CI / local differences don't break the app.
- * Priority:
- *   1) runtime (window.__API_BASE_URL__)
- *   2) VITE_API_BASE          ← what the GitHub Action sets
- *   3) VITE_API_BASE_URL
- *   4) VITE_APP_ORIGIN
- *   5) '' (relative; only useful in web dev)
+ * Wrapper function that routes requests to either HTTP or local storage
  */
-const API_BASE = normalizeBase(
-  (globalThis as any).__API_BASE_URL__ ||
-  import.meta.env.VITE_API_BASE ||
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_APP_ORIGIN ||
-  'https://brain-bucket-kmkohl117.replit.app'   // <--- force default
-);
-
-
-// 🔎 Always log what base URL we resolved at runtime (APK & web)
-console.log(
-  `🌐 BrainBucket API_BASE = '${API_BASE || "(relative)"}'`,
-  {
-    from: (globalThis as any).__API_BASE_URL__ ? 'window.__API_BASE_URL__' : 'env',
-    VITE_API_BASE: import.meta.env.VITE_API_BASE,
-    VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
-    VITE_APP_ORIGIN: import.meta.env.VITE_APP_ORIGIN,
-  }
-);
-
-
-function httpFetch(path: string, init?: RequestInit) {
-  const url = API_BASE
-    ? `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
-    : path; // fallback to relative (web dev only)
-
-  // 🛰️ Trace all outgoing requests
-  const m = (init?.method || 'GET').toUpperCase();
-  console.log(`🛰️ [BB-NET] ${m} ${url}`);
-
-  return fetch(url, init);
-}
-
-/* ---------------------------- HTTP request path --------------------------- */
-
-/** Route requests either to local adapter or real HTTP API. */
 export async function adaptedApiRequest(
   method: string,
   url: string,
   data?: unknown
 ): Promise<Response> {
   if (shouldUseLocalStorage()) {
+    // Use local storage adapter
     const response = await storageAdapter.handleRequest(method, url, data);
     return new Response(JSON.stringify(await response.json()), {
       status: response.status,
@@ -334,8 +346,12 @@ export async function adaptedApiRequest(
     });
   }
 
-  // HTTP mode → always go through httpFetch so the APK talks to your server
-  const res = await httpFetch(url, {
+  // Use HTTP API with absolute URL for Capacitor compatibility
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+  
+  console.log(`Making HTTP request: ${method} ${fullUrl}`);
+
+  const res = await fetch(fullUrl, {
     method,
     headers: data ? { 'Content-Type': 'application/json' } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -344,34 +360,41 @@ export async function adaptedApiRequest(
 
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    console.error(`🧨 [BB-NET] ${method} ${API_BASE ? `${API_BASE}${url}` : url} -> ${res.status} ${text}`);
+    console.error(`HTTP request failed: ${res.status} ${text}`);
     throw new Error(`${res.status}: ${text}`);
   }
+
   return res;
 }
 
-/** Upload handler that works in both environments. */
+/**
+ * Enhanced file upload handler that works with both environments
+ */
 export async function adaptedFileUpload(file: File): Promise<Attachment> {
   if (shouldUseLocalStorage()) {
+    // Use filesystem service directly
     const validation = await fileSystemService.validateFile(file);
-    if (!validation.isValid) throw new Error(validation.error || 'Invalid file');
+    if (!validation.isValid) {
+      throw new Error(validation.error || 'Invalid file');
+    }
     return fileSystemService.saveFile(file, file.name, file.type);
   }
 
-  const form = new FormData();
-  form.append('file', file);
+  // HTTP upload endpoint with base URL
+  const fullUrl = `${API_BASE}/api/upload`;
+  const formData = new FormData();
+  formData.append('file', file);
 
-  const res = await httpFetch('/api/upload', {
+  const response = await fetch(fullUrl, {
     method: 'POST',
-    body: form,
+    body: formData,
     credentials: 'include',
   });
 
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    console.error(`🧨 [BB-NET] POST ${API_BASE ? `${API_BASE}/api/upload` : '/api/upload'} -> ${res.status} ${text}`);
-    throw new Error(`Upload failed: ${text}`);
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Upload failed: ${error}`);
   }
-  return res.json() as Promise<Attachment>;
-}
 
+  return response.json() as Promise<Attachment>;
+}
