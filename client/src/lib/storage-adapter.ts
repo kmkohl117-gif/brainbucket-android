@@ -329,27 +329,21 @@ const API_BASE =
   '';
 
 /**
- * Wrapper function that routes requests to either HTTP or local storage
+ * Wrapper function that ALWAYS uses HTTP API (bypasses storage mode detection)
  */
 export async function adaptedApiRequest(
   method: string,
   url: string,
   data?: unknown
 ): Promise<Response> {
-  if (shouldUseLocalStorage()) {
-    // Use local storage adapter
-    const response = await storageAdapter.handleRequest(method, url, data);
-    return new Response(JSON.stringify(await response.json()), {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-    });
-  }
-
+  // FORCE HTTP MODE - bypass shouldUseLocalStorage() completely
+  console.log(`FORCE HTTP MODE: storage mode would be '${getStorageMode()}' but using HTTP anyway`);
+  
   // Use HTTP API with absolute URL for Capacitor compatibility
   const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
   
   console.log(`Making HTTP request: ${method} ${fullUrl}`);
+  console.log(`API_BASE is: "${API_BASE}"`);
 
   const res = await fetch(fullUrl, {
     method,
@@ -357,6 +351,8 @@ export async function adaptedApiRequest(
     body: data ? JSON.stringify(data) : undefined,
     credentials: 'include',
   });
+
+  console.log(`HTTP response: ${res.status} ${res.statusText}`);
 
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -368,20 +364,16 @@ export async function adaptedApiRequest(
 }
 
 /**
- * Enhanced file upload handler that works with both environments
+ * Enhanced file upload handler that ALWAYS uses HTTP
  */
 export async function adaptedFileUpload(file: File): Promise<Attachment> {
-  if (shouldUseLocalStorage()) {
-    // Use filesystem service directly
-    const validation = await fileSystemService.validateFile(file);
-    if (!validation.isValid) {
-      throw new Error(validation.error || 'Invalid file');
-    }
-    return fileSystemService.saveFile(file, file.name, file.type);
-  }
-
+  // FORCE HTTP MODE - bypass shouldUseLocalStorage() completely
+  console.log('FORCE HTTP MODE: file upload using HTTP endpoint');
+  
   // HTTP upload endpoint with base URL
   const fullUrl = `${API_BASE}/api/upload`;
+  console.log(`Upload URL: ${fullUrl}`);
+  
   const formData = new FormData();
   formData.append('file', file);
 
