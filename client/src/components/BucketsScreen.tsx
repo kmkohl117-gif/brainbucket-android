@@ -391,5 +391,5 @@ return (
         </DialogContent>
       </Dialog>
     </div>
-  </div>  {/* This closing </div> was missing */}
+  </div>
 );
