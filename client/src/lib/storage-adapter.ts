@@ -319,7 +319,7 @@ export function shouldUseLocalStorage(): boolean {
 /**
  * API base URL for HTTP mode - HARD-CODED to fix localhost issue
  */
-const API_BASE = 'https://brain-bucket-kmkohl117.replit.app';
+const API_BASE = 'http://brain-bucket-kmkohl117.replit.app';
 
 /**
  * Wrapper function that ALWAYS uses HTTP API (bypasses storage mode detection)
