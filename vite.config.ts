@@ -7,7 +7,7 @@ import { dirname, resolve } from 'path'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-// 👇 your frontend lives here
+// Your frontend lives here
 const appRoot = resolve(__dirname, 'client')
 
 export default defineConfig({
@@ -15,6 +15,11 @@ export default defineConfig({
   build: {
     outDir: resolve(appRoot, 'dist'),
     emptyOutDir: true
+  },
+  resolve: {
+    alias: {
+      '@': resolve(appRoot, 'src') // 👈 now "@/..." resolves to client/src/...
+    }
   },
   plugins: [
     react(),
