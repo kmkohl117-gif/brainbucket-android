@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Web (PWA)
 
 on:
   push:
@@ -8,89 +8,29 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  web:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: 20
+          cache: npm
 
-      - name: Install dependencies
+      - name: Install deps
         run: npm ci
 
-      # ⬇️ Build ONLY the Vite web assets (no server bundling)
-      - name: Build web assets
+      - name: Build (Vite → client/dist)
         env:
           NODE_ENV: production
-          VITE_API_BASE: ${{ secrets.VITE_API_BASE_URL }}      # <- add this
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}  # keep for compatibility
+          VITE_API_BASE: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
         run: npm run build
 
-      - name: Show dist output (debug)
+      - name: Show output
         run: |
-          echo "---- dist ----"
-          ls -la dist || true
-          echo "--------------"
+          echo "---- client/dist ----"
+          ls -la client/dist || true
+          echo "---------------------"
 
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: "temurin"
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: 34
-          target: default
-          arch: x86_64
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
-
-
-      - name: Build debug APK
-        working-directory: android
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: brainbucket-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
-
-      - name: Build release APK (unsigned)
-        working-directory: android
-        run: ./gradlew assembleRelease --stacktrace
-
-      - name: Upload release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: brainbucket-release-unsigned
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
-          retention-days: 30
-
-      - name: Display APK info
-        run: |
-          echo "✅ APK Build Complete!"
-          echo "📱 Debug APK: Ready to install (signed for testing)"
-          echo "🔧 Release APK: Unsigned (requires signing for production)"
-          echo ""
-          echo "📦 Download your APK from the Actions artifacts above"
