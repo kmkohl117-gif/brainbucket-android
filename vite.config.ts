@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// ✅ Known-good, TS/ESM config
 export default defineConfig({
   plugins: [
     react(),
@@ -27,23 +28,6 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: ({ request }) =>
-              ['document','script','style','worker'].includes(request.destination),
+              ['document', 'script', 'style', 'worker'].includes(request.destination),
             handler: 'StaleWhileRevalidate'
           },
-          {
-            urlPattern: ({ request }) =>
-              ['image','font'].includes(request.destination),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'assets',
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 }
-            }
-          }
-        ]
-      }
-    })
-  ]
-})
-
-  },
-});
