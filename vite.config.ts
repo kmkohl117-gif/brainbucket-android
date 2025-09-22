@@ -1,8 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+// 👇 your frontend lives here
+const appRoot = resolve(__dirname, 'client')
 
 export default defineConfig({
+  root: appRoot,
+  build: {
+    outDir: resolve(appRoot, 'dist'),
+    emptyOutDir: true
+  },
   plugins: [
     react(),
     VitePWA({
@@ -27,20 +40,14 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: ({ request }) =>
-              ['document', 'script', 'style', 'worker'].includes(request.destination),
+              ['document','script','style','worker'].includes(request.destination),
             handler: 'StaleWhileRevalidate'
           },
           {
             urlPattern: ({ request }) =>
-              ['image', 'font'].includes(request.destination),
+              ['image','font'].includes(request.destination),
             handler: 'CacheFirst',
-            options: {
-              cacheName: 'assets',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 30
-              }
-            }
+            options: { cacheName: 'assets', expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 } }
           }
         ]
       }
