@@ -1,21 +1,40 @@
-import { createRoot } from "react-dom/client";
-import App from "./App";
-import "./index.css";
+// client/src/main.tsx
+import { createRoot } from "react-dom/client"
+import App from "./App"
+import "./index.css"
 
-(window as any).__API_BASE_URL__ = 'https://brain-bucket-kmkohl117.replit.app';
+import { ensureSeeded } from "./lib/db"
+import { ErrorBoundary } from "./ErrorBoundary"   // <-- make sure this file exists (I gave you the code earlier)
+import { StatusBar } from "@capacitor/status-bar"
+import { Workbox } from "workbox-window"
 
-// Prevent content from being jammed under the status bar
-import { StatusBar } from "@capacitor/status-bar";
-StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
+// Set your API base first (if your app reads it on boot)
+;(window as any).__API_BASE_URL__ = "https://brain-bucket-kmkohl117.replit.app"
 
-// ✅ Add this import
-import { Workbox } from 'workbox-window';
+// Avoid content under status bar (no-op on web)
+StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {})
 
-createRoot(document.getElementById("root")!).render(<App />);
+async function mount() {
+  try {
+    await ensureSeeded()
+  } catch (e) {
+    console.error("Seeding failed:", e)
+  }
 
-// ✅ Add this block at the very bottom (once)
-if ('serviceWorker' in navigator) {
-  const wb = new Workbox('/sw.js', { type: 'module' })
-  wb.addEventListener('waiting', () => wb.messageSkipWaiting())
-  wb.register()
+  const rootEl = document.getElementById("root")!
+  createRoot(rootEl).render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  )
+
+  // Register the PWA service worker AFTER initial render
+  if ("serviceWorker" in navigator) {
+    const wb = new Workbox("/sw.js", { type: "module" })
+    wb.addEventListener("waiting", () => wb.messageSkipWaiting())
+    wb.register()
+  }
 }
+
+mount()
+
