@@ -1,0 +1,66 @@
+{
+  "name": "Brain Bucket - Your Digital Mind Palace",
+  "short_name": "Brain Bucket",
+  "description": "Capture, organize, and manage your thoughts, tasks, and ideas",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "utilities"],
+  "scope": "/",
+  "lang": "en",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "android-launchericon-192-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "android-launchericon-512-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "android-launchericon-192-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "android-launchericon-512-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quick Capture",
+      "short_name": "Capture",
+      "description": "Quickly capture a new thought or task",
+      "url": "/?action=capture",
+      "icons": [
+        {
+          "src": "android-launchericon-192-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "short_name": "Search",
+      "description": "Search your captures",
+      "url": "/?action=search",
+      "icons": [
+        {
+          "src": "android-launchericon-192-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
