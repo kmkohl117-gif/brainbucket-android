@@ -6,7 +6,7 @@
 /* Add padding for Android navigation bar at bottom */
 body {
   padding-top: 16px;
-  padding-bottom: env(safe-area-inset-bottom, 16px);
+  padding-bottom: env(safe-area-inset-bottom, 8px);
 }
 
 #root {
