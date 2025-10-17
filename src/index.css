@@ -2,18 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Add padding for Android status bar */
-body {
-  padding-top: 16px;
-}
-
-#root {
-  padding-top: env(safe-area-inset-top, 0px);
-}
 
 /* Add padding for Android navigation bar at bottom */
 body {
-  padding-top: 32px;
+  padding-top: 16px;
   padding-bottom: env(safe-area-inset-bottom, 16px);
 }
 
