@@ -249,15 +249,7 @@ export function QuickCapture() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <h1 className="text-xl font-semibold text-gray-900">Quick Capture</h1>
-            {(canInstall || !isInstalled) && (
-              <button
-                onClick={handleInstallClick}
-                className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors shadow-sm"
-              >
-                <Download className="w-3 h-3" />
-                <span>📱 Install</span>
-              </button>
-            )}
+          
           </div>
           <div className="flex items-center space-x-2">
             <button
