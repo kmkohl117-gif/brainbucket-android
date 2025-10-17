@@ -4,7 +4,7 @@
 
 /* Add padding for Android status bar */
 body {
-  padding-top: 24px;
+  padding-top: 16px;
 }
 
 #root {
