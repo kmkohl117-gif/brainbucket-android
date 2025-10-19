@@ -1,10 +1,3 @@
-declare global {
-  interface Window {
-    Android?: {
-      getSharedText: () => string | null;
-    };
-  }
-}
 
 import React, { useState, useRef } from 'react';
 import {
