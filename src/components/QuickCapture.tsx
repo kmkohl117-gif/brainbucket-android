@@ -84,6 +84,7 @@ if (window.Android && window.Android.getSharedText) {
     }
   }, []);
 
+  
   setIsInstalled(isInstalled);
     setIsInstalled(isInstalled);
     
