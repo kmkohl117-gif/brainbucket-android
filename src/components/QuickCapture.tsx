@@ -76,8 +76,8 @@ export function QuickCapture() {
 
   // Check for shared content from Android
   React.useEffect(() => {
-    if (window.Android && typeof window.Android.getSharedText === 'function') {
-      const sharedText = window.Android.getSharedText();
+if (window.Android && window.Android.getSharedText) {
+  const sharedText = window.Android.getSharedText();
       if (sharedText) {
         setText(sharedText);
       }
