@@ -1,3 +1,11 @@
+declare global {
+  interface Window {
+    Android?: {
+      getSharedText: () => string | null;
+    };
+  }
+}
+
 import React, { useState, useRef } from 'react';
 import {
   CheckSquare,
@@ -64,7 +72,19 @@ export function QuickCapture() {
       userAgent: navigator.userAgent,
       deferredPrompt: !!(window as any).deferredPrompt
     });
-    
+    });
+
+  // Check for shared content from Android
+  React.useEffect(() => {
+    if (window.Android && typeof window.Android.getSharedText === 'function') {
+      const sharedText = window.Android.getSharedText();
+      if (sharedText) {
+        setText(sharedText);
+      }
+    }
+  }, []);
+
+  setIsInstalled(isInstalled);
     setIsInstalled(isInstalled);
     
     // Show install button by default for testing
