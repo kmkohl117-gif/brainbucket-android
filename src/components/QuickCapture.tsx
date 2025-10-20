@@ -50,67 +50,64 @@ export function QuickCapture() {
   const [canInstall, setCanInstall] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
-  // Check PWA install status
-  React.useEffect(() => {
-    console.log('PWA install effect running...');
-    
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    const isInWebAppiOS = (window.navigator as any).standalone === true;
-    const isInstalled = isStandalone || isInWebAppiOS;
-    
-    console.log('Install status check:', {
-      isStandalone,
-      isInWebAppiOS,
-      isInstalled,
-      userAgent: navigator.userAgent,
-      deferredPrompt: !!(window as any).deferredPrompt
-    });
-    });
+// ✅ Fixed: Properly scoped and dependency-safe
+React.useEffect(() => {
+  console.log('PWA install effect running...');
 
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  const isInWebAppiOS = (window.navigator as any).standalone === true;
+  const installed = isStandalone || isInWebAppiOS;
 
-  
-  setIsInstalled(isInstalled);
-    setIsInstalled(isInstalled);
-    
-    // Show install button by default for testing
-    if (!isInstalled) {
-      setCanInstall(true);
-    }
-    
-    // Listen for install prompt availability
-    const handleInstallAvailable = () => {
-      console.log('Install prompt available');
-      console.log('Setting canInstall to true');
-      setCanInstall(true);
-    };
-    
-    const handleInstalled = () => {
-      console.log('App installed');
-      setIsInstalled(true);
-      setCanInstall(false);
-    };
-    
-    const handleAppInstalled = () => {
-      console.log('appinstalled event fired');
-      setIsInstalled(true);
-      setCanInstall(false);
-    };
-    
-    window.addEventListener('pwa-install-available', handleInstallAvailable);
-    window.addEventListener('pwa-installed', handleInstalled);
-    window.addEventListener('appinstalled', handleAppInstalled);
-    
-    // Check if prompt is already available
-    if ((window as any).deferredPrompt) {
-      console.log('deferredPrompt already available on mount');
-      setCanInstall(true);
-    }
-    
-    return () => {
-      window.removeEventListener('pwa-install-available', handleInstallAvailable);
-      window.removeEventListener('pwa-installed', handleInstalled);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
+  setIsInstalled(installed);
+
+  // Show install button by default for testing
+  if (!installed) {
+    setCanInstall(true);
+  }
+
+  console.log('Install status check:', {
+    isStandalone,
+    isInWebAppiOS,
+    installed,
+    userAgent: navigator.userAgent,
+    deferredPrompt: !!(window as any).deferredPrompt,
+  });
+
+  // Listen for install prompt availability
+  const handleInstallAvailable = () => {
+    console.log('Install prompt available');
+    setCanInstall(true);
+  };
+
+  const handleInstalled = () => {
+    console.log('App installed');
+    setIsInstalled(true);
+    setCanInstall(false);
+  };
+
+  const handleAppInstalled = () => {
+    console.log('appinstalled event fired');
+    setIsInstalled(true);
+    setCanInstall(false);
+  };
+
+  window.addEventListener('pwa-install-available', handleInstallAvailable);
+  window.addEventListener('pwa-installed', handleInstalled);
+  window.addEventListener('appinstalled', handleAppInstalled);
+
+  // Check if prompt is already available
+  if ((window as any).deferredPrompt) {
+    console.log('deferredPrompt already available on mount');
+    setCanInstall(true);
+  }
+
+  return () => {
+    window.removeEventListener('pwa-install-available', handleInstallAvailable);
+    window.removeEventListener('pwa-installed', handleInstalled);
+    window.removeEventListener('appinstalled', handleAppInstalled);
+  };
+}, []); // ✅ empty dependency array so it runs only once
+
 
   const handleInstallClick = () => {
     console.log('Install button clicked');
