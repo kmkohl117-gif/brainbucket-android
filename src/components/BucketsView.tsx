@@ -45,7 +45,7 @@ export function BucketsView() {
 
   return (
     // Apply bottom padding to ensure content is not hidden behind the sticky nav
-    <div className="min-h-screen bg-gray-50 flex flex-col pb-20 pt-[calc(env(safe-area-inset-top,0px)+48px)]">
+    <div className="min-h-screen bg-gray-50 flex flex-col pb-20 safe-top">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-4">
         <div className="flex items-center justify-between">
