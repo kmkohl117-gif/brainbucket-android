@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom global classes go AFTER Tailwind so they win */
+.safe-top {
+  /* fallback 48px + safe-area when available */
+  padding-top: calc(env(safe-area-inset-top, 0px) + 48px);
+}
 /* --- Fixed spacing for WebView, dynamic for web --- */
 :root {
   --safe-bottom: env(safe-area-inset-bottom, 0px);
