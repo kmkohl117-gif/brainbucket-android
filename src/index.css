@@ -22,7 +22,9 @@ html, body, #root {
 
 /* Use a fixed top pad to push below the status bar */
 body {
-/* padding-top: 32px; */ /* disabled, safe-top now handles spacing */
+  padding-top: 48px; /* fallback for Android and others */
+  padding-top: calc(env(safe-area-inset-top, 0px) + constant(safe-area-inset-top, 0px) + 48px);
   padding-bottom: max(var(--safe-bottom), 8px);
   background-color: #f8f9fa;
 }
+
