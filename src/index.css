@@ -2,13 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-
-/* Add padding for Android navigation bar at bottom */
-body {
-  padding-top: 16px;
-  padding-bottom: env(safe-area-inset-bottom, 8px);
+/* --- Safe area support for Android WebView and PWA --- */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-#root {
-  padding-top: env(safe-area-inset-top, 0px);
+/* Global layout adjustments */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  background-color: #0b0b0b; /* optional */
+}
+
+/* If your app’s header bar is fixed, give the content extra space */
+.main-content {
+  padding-top: calc(var(--safe-top) + 16px);
+  padding-bottom: var(--safe-bottom);
 }
