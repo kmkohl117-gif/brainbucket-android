@@ -120,7 +120,6 @@ if (window.Android && window.Android.getSharedText) {
       window.removeEventListener('pwa-installed', handleInstalled);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, []);
 
   const handleInstallClick = () => {
     console.log('Install button clicked');
