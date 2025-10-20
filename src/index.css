@@ -2,27 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- Safe area support for Android WebView and PWA --- */
+/* --- Safe area + fallback padding for Android WebView and PWA --- */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Global layout adjustments */
 html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
 }
 
+/* Add smart top padding */
 body {
-  padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
-  background-color: #0b0b0b; /* optional */
+  /* fallback: 36px for Android WebView when env() = 0 */
+  padding-top: max(var(--safe-top), 36px);
+  padding-bottom: max(var(--safe-bottom), 8px);
+  background-color: #f8f9fa;
 }
 
-/* If your app’s header bar is fixed, give the content extra space */
-.main-content {
-  padding-top: calc(var(--safe-top) + 16px);
-  padding-bottom: var(--safe-bottom);
+#root {
+  padding-top: 0; /* handled by body */
 }
