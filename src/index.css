@@ -21,7 +21,7 @@ html, body, #root {
 
 /* Use a fixed top pad to push below the status bar */
 body {
-  padding-top: 32px; /* adjust if header still touches the status bar */
+/* padding-top: 32px; */ /* disabled, safe-top now handles spacing */
   padding-bottom: max(var(--safe-bottom), 8px);
   background-color: #f8f9fa;
 }
