@@ -49,6 +49,16 @@ export function QuickCapture() {
   const [editingTemplate, setEditingTemplate] = useState<QuickTemplate | null>(null);
   const [canInstall, setCanInstall] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+ // 🔽 Autofill QuickCapture when shared text is passed from Android
+React.useEffect(() => {
+  const shared = localStorage.getItem('sharedCapture');
+  if (shared) {
+    console.log('Loaded shared text into QuickCapture:', shared);
+    setText(shared);
+    localStorage.removeItem('sharedCapture'); // clear so it doesn't re-run
+  }
+}, []);
+ 
 
 // ✅ Fixed: Properly scoped and dependency-safe
 React.useEffect(() => {
