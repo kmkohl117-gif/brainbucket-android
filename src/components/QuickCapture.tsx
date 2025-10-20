@@ -67,19 +67,6 @@ export function QuickCapture() {
     });
     });
 
-// Check for shared content from Android
-React.useEffect(() => {
-  try {
-    if (typeof window !== 'undefined' && window.Android) {
-      const sharedText = window.Android.getSharedText();
-      if (sharedText && sharedText.trim()) {
-        setText(sharedText);
-      }
-    }
-  } catch (error) {
-    console.log('No shared content available');
-  }
-}, []);
 
   
   setIsInstalled(isInstalled);
