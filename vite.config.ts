@@ -1,11 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  base: './', // 👈 required for offline / Android WebView
+export default defineConfig(({ mode }) => ({
+  // 👇 dynamic base depending on build mode
+  base: mode === 'production-local' ? './' : '/',
   plugins: [react()],
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
-})
+}))
