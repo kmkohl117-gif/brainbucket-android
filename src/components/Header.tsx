@@ -29,7 +29,12 @@ export function Header() {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+<header
+  className="bg-white border-b border-gray-200 px-6 py-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]"
+  style={{
+    paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)',
+  }}
+>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{getTitle()}</h1>
