@@ -6,12 +6,16 @@ export default defineConfig({
   base: './', // 👈 this keeps relative paths for online hosting
   plugins: [
     react(),
-    VitePWA({
-      registerType: 'prompt', // prevent auto-refresh loop
-      injectRegister: 'auto',
-      workbox: { disable: true }, // completely disables caching
-      devOptions: { enabled: false },
-    }),
+VitePWA({
+  registerType: 'prompt', // prevent auto-refresh loop
+  injectRegister: 'auto',
+  workbox: {
+    mode: 'development', // disables aggressive caching
+    cleanupOutdatedCaches: true,
+  },
+  devOptions: { enabled: false },
+}),
+
   ],
   build: {
     sourcemap: true, // 👈 this is what makes DevTools show actual .tsx filenames
