@@ -7,14 +7,14 @@ export default defineConfig({
   plugins: [
     react(),
 VitePWA({
-  registerType: 'prompt', // prevent auto-refresh loop
+  registerType: 'autoUpdate', // ✅ prevents popup loop
   injectRegister: 'auto',
   workbox: {
-    mode: 'development', // disables aggressive caching
     cleanupOutdatedCaches: true,
   },
   devOptions: { enabled: false },
 }),
+
 
   ],
   build: {
