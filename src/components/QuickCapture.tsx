@@ -58,7 +58,16 @@ React.useEffect(() => {
     localStorage.removeItem('sharedCapture'); // clear so it doesn't re-run
   }
 }, []);
- 
+
+  // 👇 Redirect to QuickCapture when coming from a shared link
+React.useEffect(() => {
+  const shouldFocus = localStorage.getItem('forceQuickCapture');
+  if (shouldFocus) {
+    dispatch({ type: 'SET_ACTIVE_VIEW', payload: 'capture' });
+    localStorage.removeItem('forceQuickCapture');
+  }
+}, [dispatch]);
+
 
 // ✅ Fixed: Properly scoped and dependency-safe
 React.useEffect(() => {
