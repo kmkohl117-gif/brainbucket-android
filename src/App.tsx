@@ -9,6 +9,22 @@ import { CaptureEdit } from './components/CaptureEdit';
 import { FolderDetail } from './components/FolderDetail';
 
 function AppContent() {
+    React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedText = params.get('shared');
+    if (sharedText) {
+      try {
+        const decoded = decodeURIComponent(sharedText);
+        // Temporarily store it so QuickCapture can read it
+        localStorage.setItem('sharedCapture', decoded);
+        // Clean up URL so it doesn't repeat
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (err) {
+        console.error('Error decoding shared text:', err);
+      }
+    }
+  }, []);
+
   const { state } = useApp();
 
   const renderContent = () => {
